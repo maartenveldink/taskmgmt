@@ -1,0 +1,44 @@
+# Maven
+TaskManagement/target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+
+# Quarkus
+.quarkus/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.project
+.classpath
+.settings/
+bin/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Logs
+*.log
+
+# Angular
+task-management-frontend/node_modules/
+task-management-frontend/dist/
+task-management-frontend/.angular/
