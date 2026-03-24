@@ -1,0 +1,23 @@
+services:
+
+  backend:
+    image: task-management-backend:${IMAGE_TAG}
+    container_name: task-management-backend
+    ports:
+      - "8080:8080"
+    networks:
+      - task-management
+
+  frontend:
+    image: task-management-frontend:${IMAGE_TAG}
+    container_name: task-management-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - task-management
+
+networks:
+  task-management:
+    driver: bridge

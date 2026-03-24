@@ -1,0 +1,125 @@
+<div class="detail-container">
+  <div class="detail-header">
+    <button mat-icon-button (click)="back()">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <h2>Task Detail</h2>
+  </div>
+
+  <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
+
+  <ng-container *ngIf="task && !loading">
+
+    <!-- Task info card -->
+    <mat-card class="info-card">
+      <mat-card-header>
+        <mat-card-title>{{ task.title }}</mat-card-title>
+        <mat-card-subtitle>
+          <mat-chip [color]="statusColor(task.status)" highlighted>{{ task.status }}</mat-chip>
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <p *ngIf="task.description">{{ task.description }}</p>
+
+        <mat-list dense>
+          <mat-list-item>
+            <span matListItemTitle>Task ID</span>
+            <span matListItemLine class="mono">{{ task.taskId }}</span>
+          </mat-list-item>
+          <mat-list-item>
+            <span matListItemTitle>Group</span>
+            <span matListItemLine>{{ task.assignedGroup }}</span>
+          </mat-list-item>
+          <mat-list-item *ngIf="task.assignedUser">
+            <span matListItemTitle>Assigned User</span>
+            <span matListItemLine>{{ task.assignedUser }}</span>
+          </mat-list-item>
+          <mat-list-item>
+            <span matListItemTitle>Deadline</span>
+            <span matListItemLine>{{ task.deadline | date:'medium' }}</span>
+          </mat-list-item>
+          <mat-list-item>
+            <span matListItemTitle>Created</span>
+            <span matListItemLine>{{ task.createdAt | date:'medium' }}</span>
+          </mat-list-item>
+          <mat-list-item>
+            <span matListItemTitle>Last Updated</span>
+            <span matListItemLine>{{ task.updatedAt | date:'medium' }}</span>
+          </mat-list-item>
+        </mat-list>
+      </mat-card-content>
+
+      <!-- Action buttons based on status -->
+      <mat-card-actions *ngIf="!isTerminal()">
+        <button mat-stroked-button color="primary"
+                *ngIf="task.status === 'CREATED' || task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS'"
+                (click)="openAssign('assign')">
+          <mat-icon>person_add</mat-icon> Assign
+        </button>
+        <button mat-stroked-button color="accent"
+                *ngIf="task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS'"
+                (click)="openAssign('reassign')">
+          <mat-icon>swap_horiz</mat-icon> Reassign
+        </button>
+        <button mat-stroked-button color="primary"
+                *ngIf="task.status === 'ASSIGNED'"
+                (click)="confirmStart()">
+          <mat-icon>play_arrow</mat-icon> Start
+        </button>
+        <button mat-stroked-button color="primary"
+                *ngIf="task.status === 'IN_PROGRESS'"
+                (click)="confirmComplete()">
+          <mat-icon>check_circle</mat-icon> Complete
+        </button>
+        <button mat-stroked-button color="warn"
+                *ngIf="task.status === 'CREATED' || task.status === 'ASSIGNED'"
+                (click)="confirmReject()">
+          <mat-icon>block</mat-icon> Reject
+        </button>
+        <button mat-stroked-button color="warn"
+                (click)="confirmCancel()">
+          <mat-icon>cancel</mat-icon> Cancel
+        </button>
+      </mat-card-actions>
+    </mat-card>
+
+    <!-- Audit trail -->
+    <mat-card class="audit-card">
+      <mat-card-header>
+        <mat-card-title>Audit Trail</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <table mat-table [dataSource]="auditEntries" class="audit-table">
+
+          <ng-container matColumnDef="eventTimestamp">
+            <th mat-header-cell *matHeaderCellDef>Time</th>
+            <td mat-cell *matCellDef="let e">{{ e.eventTimestamp | date:'medium' }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="eventType">
+            <th mat-header-cell *matHeaderCellDef>Event</th>
+            <td mat-cell *matCellDef="let e">
+              <span class="event-type">{{ e.eventType }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="payload">
+            <th mat-header-cell *matHeaderCellDef>Payload</th>
+            <td mat-cell *matCellDef="let e">
+              <pre class="payload-pre">{{ formatPayload(e.payload) }}</pre>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="auditColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: auditColumns;"></tr>
+
+          <tr class="mat-row" *matNoDataRow>
+            <td class="mat-cell" colspan="3">No audit entries yet.</td>
+          </tr>
+        </table>
+      </mat-card-content>
+    </mat-card>
+
+  </ng-container>
+</div>

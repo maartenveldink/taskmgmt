@@ -1,0 +1,104 @@
+<div class="list-container">
+
+  <!-- Toolbar -->
+  <div class="list-toolbar">
+    <h1>Task Management</h1>
+    <button mat-raised-button color="primary" (click)="openCreateDialog()">
+      <mat-icon>add</mat-icon> New Task
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <mat-card class="filter-card">
+    <form [formGroup]="filterForm" class="filter-form">
+
+      <mat-button-toggle-group formControlName="viewMode" class="view-toggle">
+        <mat-button-toggle *ngFor="let m of viewModes" [value]="m.value">{{ m.label }}</mat-button-toggle>
+      </mat-button-toggle-group>
+
+      <mat-form-field appearance="outline" *ngIf="filterForm.get('viewMode')?.value !== 'all'">
+        <mat-label>{{ filterForm.get('viewMode')?.value === 'user' ? 'User name' : 'Group name' }}</mat-label>
+        <input matInput formControlName="filterName" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Status</mat-label>
+        <mat-select formControlName="status">
+          <mat-option [value]="null">— All —</mat-option>
+          <mat-option *ngFor="let s of statuses" [value]="s">{{ s }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" *ngIf="filterForm.get('viewMode')?.value === 'all'">
+        <mat-label>Deadline after</mat-label>
+        <input matInput type="datetime-local" formControlName="deadlineAfter" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" *ngIf="filterForm.get('viewMode')?.value === 'all'">
+        <mat-label>Deadline before</mat-label>
+        <input matInput type="datetime-local" formControlName="deadlineBefore" />
+      </mat-form-field>
+
+      <button mat-stroked-button color="primary" (click)="loadTasks()">
+        <mat-icon>search</mat-icon> Search
+      </button>
+    </form>
+  </mat-card>
+
+  <!-- Task table -->
+  <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
+
+  <table mat-table [dataSource]="tasks" class="tasks-table mat-elevation-z2">
+
+    <ng-container matColumnDef="title">
+      <th mat-header-cell *matHeaderCellDef>Title</th>
+      <td mat-cell *matCellDef="let t">
+        <span [class.overdue]="isOverdue(t)">{{ t.title }}</span>
+        <mat-icon *ngIf="isOverdue(t)" class="overdue-icon" title="Overdue">warning</mat-icon>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef>Status</th>
+      <td mat-cell *matCellDef="let t">
+        <mat-chip [color]="statusColor(t.status)" highlighted>{{ t.status }}</mat-chip>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="assignedGroup">
+      <th mat-header-cell *matHeaderCellDef>Group</th>
+      <td mat-cell *matCellDef="let t">{{ t.assignedGroup }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="assignedUser">
+      <th mat-header-cell *matHeaderCellDef>User</th>
+      <td mat-cell *matCellDef="let t">{{ t.assignedUser ?? '—' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="deadline">
+      <th mat-header-cell *matHeaderCellDef>Deadline</th>
+      <td mat-cell *matCellDef="let t" [class.overdue]="isOverdue(t)">
+        {{ t.deadline | date:'mediumDate' }}
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let t">
+        <button mat-icon-button color="primary" (click)="viewDetail(t)" title="View detail">
+          <mat-icon>open_in_new</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="task-row" (click)="viewDetail(row)"></tr>
+
+    <tr class="mat-row" *matNoDataRow>
+      <td class="mat-cell no-data" colspan="6">
+        {{ loading ? 'Loading…' : 'No tasks found.' }}
+      </td>
+    </tr>
+  </table>
+
+</div>

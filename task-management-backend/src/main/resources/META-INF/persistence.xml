@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Persistence unit configuration for the Task Management PoC.
+
+  WHY THIS FILE EXISTS
+  ====================
+  Quarkus discovers @Entity classes in the application module automatically
+  via Jandex indexing.  However, @Entity classes that live in *external*
+  dependency JARs (like Axon Framework) are not indexed by default, so
+  Hibernate would not create their tables or accept JPQL queries against them.
+
+  Using persistence.xml with explicit <class> elements is the most reliable
+  way to register entities from third-party JARs in a Quarkus application.
+
+  ENTITIES FROM AXON FRAMEWORK
+  ==============================
+  axon-eventsourcing:
+    • DomainEventEntry    — one row per published domain event (event store)
+    • SnapshotEventEntry  — one row per aggregate snapshot
+
+  axon-modelling:
+    • SagaEntry           — serialised state of a single Saga instance
+    • AssociationValueEntry — maps an association value to a Saga ID
+                             (e.g., "taskId" → saga UUID)
+
+  OWN ENTITIES
+  ============
+  • TaskView      — read-model projection of the latest task state
+  • AuditTrailEntry — append-only audit log, one row per domain event
+
+  TRANSACTION TYPE / DATASOURCE
+  ==============================
+  JTA — Quarkus manages the JTA transaction lifecycle via Narayana.
+  <jta-data-source> is intentionally omitted: Quarkus does NOT support
+  this element in persistence.xml (throws UnsupportedOperationException).
+  Instead, Quarkus automatically assigns the default managed datasource
+  (configured via quarkus.datasource.* in application.yaml) to this unit.
+
+  NOTE: When persistence.xml is present, Quarkus ignores all
+  quarkus.hibernate-orm.* settings in application.yaml. Hibernate
+  configuration must be supplied via <properties> in this file.
+
+  SCHEMA GENERATION
+  =================
+  jakarta.persistence.schema-generation.database.action = drop-and-create
+  (PoC convenience — recreates schema on every restart).
+-->
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence
+             https://jakarta.ee/xml/ns/persistence/persistence_3_0.xsd"
+             version="3.0">
+
+    <persistence-unit name="default" transaction-type="JTA">
+
+        <!-- Application read model entities -->
+        <class>eu.poc.taskmanagement.projection.tasks.TaskView</class>
+        <class>eu.poc.taskmanagement.projection.audittrail.AuditTrailEntry</class>
+
+        <!-- Axon event store tables (axon-eventsourcing) -->
+        <class>org.axonframework.eventsourcing.eventstore.jpa.DomainEventEntry</class>
+        <class>org.axonframework.eventsourcing.eventstore.jpa.SnapshotEventEntry</class>
+
+        <!-- Axon saga store tables (axon-modelling) -->
+        <class>org.axonframework.modelling.saga.repository.jpa.SagaEntry</class>
+        <class>org.axonframework.modelling.saga.repository.jpa.AssociationValueEntry</class>
+
+        <!--
+          false: allow Quarkus to also discover @Entity classes in the
+          application module via its standard Jandex scan.
+        -->
+        <exclude-unlisted-classes>false</exclude-unlisted-classes>
+
+        <!--
+          Hibernate configuration that would normally come from
+          quarkus.hibernate-orm.* in application.yaml, but must be
+          specified here because persistence.xml overrides that config.
+        -->
+        <properties>
+            <!-- H2 dialect — matches the H2 datasource in application.yaml -->
+            <property name="hibernate.dialect"
+                      value="org.hibernate.dialect.H2Dialect"/>
+            <!--
+              drop-and-create: recreates schema on every start.
+              Acceptable for PoC; change to "none" or "validate" in production.
+            -->
+            <property name="jakarta.persistence.schema-generation.database.action"
+                      value="drop-and-create"/>
+            <!-- Set to true to log SQL during development -->
+            <property name="hibernate.show_sql" value="false"/>
+        </properties>
+
+    </persistence-unit>
+</persistence>

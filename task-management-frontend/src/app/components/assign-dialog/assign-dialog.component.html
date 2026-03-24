@@ -1,0 +1,25 @@
+<h2 mat-dialog-title>{{ title }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="task-form">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Name *</mat-label>
+      <input matInput formControlName="assigneeName" />
+      <mat-error *ngIf="form.get('assigneeName')?.hasError('required')">Name is required</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Type</mat-label>
+      <mat-select formControlName="assigneeType">
+        <mat-option *ngFor="let t of assigneeTypes" [value]="t">{{ t }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-raised-button color="primary" [disabled]="form.invalid" (click)="submit()">
+    {{ data.mode === 'assign' ? 'Assign' : 'Reassign' }}
+  </button>
+</mat-dialog-actions>
