@@ -2,6 +2,7 @@ package eu.poc.taskmanagement.api;
 
 import eu.poc.taskmanagement.model.command.*;
 import eu.poc.taskmanagement.api.dto.*;
+import eu.poc.taskmanagement.api.error.ApiError;
 import eu.poc.taskmanagement.model.TaskStatus;
 import eu.poc.taskmanagement.projection.tasks.query.GetAllTasksQuery;
 import eu.poc.taskmanagement.projection.audittrail.query.GetAuditTrailByTaskQuery;
@@ -262,13 +263,13 @@ public class TaskResource {
             // IllegalStateException           — invalid state transition (e.g., completing a DONE task)
             log.debug("Command rejected — conflict: {}", message);
             return Response.status(Response.Status.CONFLICT)
-                    .entity(new ErrorResponse(message)).build();
+                    .entity(new ApiError("CONFLICT", message)).build();
         }
 
         if (ex instanceof IllegalArgumentException) {
             log.debug("Command rejected — bad argument: {}", message);
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(new ErrorResponse(message)).build();
+                    .entity(new ApiError("BAD_REQUEST", message)).build();
         }
 
         // Axon throws AggregateNotFoundException when the aggregate ID is unknown.
@@ -276,12 +277,13 @@ public class TaskResource {
         if (exName.contains("NotFound") || exName.contains("AggregateNotFound")) {
             log.debug("Command rejected — not found: {}", message);
             return Response.status(Response.Status.NOT_FOUND)
-                    .entity(new ErrorResponse(message)).build();
+                    .entity(new ApiError("NOT_FOUND", message)).build();
         }
 
         log.error("Unexpected error processing command", ex);
         return Response.serverError()
-                .entity(new ErrorResponse("Internal server error: " + message)).build();
+                .entity(new ApiError("INTERNAL_ERROR", "An unexpected server error occurred."))
+                .build();
     }
 
     @SuppressWarnings("unchecked")
@@ -297,7 +299,4 @@ public class TaskResource {
             throw new RuntimeException("Query execution failed", e.getCause());
         }
     }
-
-    /** Simple error envelope returned in non-2xx responses. */
-    public record ErrorResponse(String message) {}
 }
