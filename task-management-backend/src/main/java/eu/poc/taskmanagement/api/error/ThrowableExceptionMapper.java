@@ -26,6 +26,12 @@ public class ThrowableExceptionMapper implements ExceptionMapper<Throwable> {
                     .entity(new ApiError(code, safeMessage))
                     .build();
         }
+        if (exception instanceof IllegalArgumentException illegalArgumentException) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ApiError("BAD_REQUEST", illegalArgumentException.getMessage()))
+                    .build();
+        }
 
         log.error("Unhandled exception while processing request", exception);
         return Response.serverError()

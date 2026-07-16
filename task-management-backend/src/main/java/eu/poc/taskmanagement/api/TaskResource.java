@@ -187,9 +187,13 @@ public class TaskResource {
     public List<TaskView> getAllTasks(
             @QueryParam("status") TaskStatus status,
             @QueryParam("deadlineBefore") Instant deadlineBefore,
-            @QueryParam("deadlineAfter") Instant deadlineAfter) {
+            @QueryParam("deadlineAfter") Instant deadlineAfter,
+            @QueryParam("offset") @DefaultValue("0") int offset,
+            @QueryParam("limit") @DefaultValue("50") int limit) {
 
-        return query(new GetAllTasksQuery(status, deadlineBefore, deadlineAfter));
+        return query(new GetAllTasksQuery(
+                status, deadlineBefore, deadlineAfter,
+                sanitizeOffset(offset), sanitizeLimit(limit)));
     }
 
     /** Returns tasks assigned to a specific user, with optional filters. */
@@ -199,9 +203,13 @@ public class TaskResource {
             @PathParam("userName") String userName,
             @QueryParam("status") TaskStatus status,
             @QueryParam("deadlineBefore") Instant deadlineBefore,
-            @QueryParam("deadlineAfter") Instant deadlineAfter) {
+            @QueryParam("deadlineAfter") Instant deadlineAfter,
+            @QueryParam("offset") @DefaultValue("0") int offset,
+            @QueryParam("limit") @DefaultValue("50") int limit) {
 
-        return query(new GetTasksByUserQuery(userName, status, deadlineBefore, deadlineAfter));
+        return query(new GetTasksByUserQuery(
+                userName, status, deadlineBefore, deadlineAfter,
+                sanitizeOffset(offset), sanitizeLimit(limit)));
     }
 
     /** Returns tasks assigned to a specific group, with optional filters. */
@@ -211,9 +219,13 @@ public class TaskResource {
             @PathParam("groupName") String groupName,
             @QueryParam("status") TaskStatus status,
             @QueryParam("deadlineBefore") Instant deadlineBefore,
-            @QueryParam("deadlineAfter") Instant deadlineAfter) {
+            @QueryParam("deadlineAfter") Instant deadlineAfter,
+            @QueryParam("offset") @DefaultValue("0") int offset,
+            @QueryParam("limit") @DefaultValue("50") int limit) {
 
-        return query(new GetTasksByGroupQuery(groupName, status, deadlineBefore, deadlineAfter));
+        return query(new GetTasksByGroupQuery(
+                groupName, status, deadlineBefore, deadlineAfter,
+                sanitizeOffset(offset), sanitizeLimit(limit)));
     }
 
     /**
@@ -298,5 +310,19 @@ public class TaskResource {
         } catch (ExecutionException e) {
             throw new RuntimeException("Query execution failed", e.getCause());
         }
+    }
+
+    private int sanitizeOffset(int offset) {
+        if (offset < 0) {
+            throw new IllegalArgumentException("offset must be >= 0");
+        }
+        return offset;
+    }
+
+    private int sanitizeLimit(int limit) {
+        if (limit <= 0 || limit > 200) {
+            throw new IllegalArgumentException("limit must be between 1 and 200");
+        }
+        return limit;
     }
 }

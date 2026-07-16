@@ -11,10 +11,14 @@ import java.time.Instant;
  * @param status         optional status filter
  * @param deadlineBefore optional upper bound on task deadline
  * @param deadlineAfter  optional lower bound on task deadline
+ * @param offset         zero-based row offset
+ * @param limit          page size
  */
 public record GetTasksByGroupQuery(
         String groupName,
         TaskStatus status,
         Instant deadlineBefore,
-        Instant deadlineAfter
+        Instant deadlineAfter,
+        int offset,
+        int limit
 ) {}

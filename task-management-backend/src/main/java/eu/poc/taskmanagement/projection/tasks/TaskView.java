@@ -2,6 +2,7 @@ package eu.poc.taskmanagement.projection.tasks;
 
 import eu.poc.taskmanagement.model.TaskStatus;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
+import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import jakarta.persistence.*;
 
 import java.time.Instant;
@@ -58,20 +59,23 @@ public class TaskView extends PanacheEntityBase {
 
     /** Returns all tasks assigned to a specific user, with optional filters. */
     public static List<TaskView> findByUser(String userName, TaskStatus status,
-                                            Instant deadlineBefore, Instant deadlineAfter) {
-        return buildFilteredQuery("assignedUser = ?1", userName, status, deadlineBefore, deadlineAfter);
+                                            Instant deadlineBefore, Instant deadlineAfter,
+                                            int offset, int limit) {
+        return buildFilteredQuery("assignedUser = ?1", userName, status, deadlineBefore, deadlineAfter, offset, limit);
     }
 
     /** Returns all tasks assigned to a specific group, with optional filters. */
     public static List<TaskView> findByGroup(String groupName, TaskStatus status,
-                                             Instant deadlineBefore, Instant deadlineAfter) {
-        return buildFilteredQuery("assignedGroup = ?1", groupName, status, deadlineBefore, deadlineAfter);
+                                             Instant deadlineBefore, Instant deadlineAfter,
+                                             int offset, int limit) {
+        return buildFilteredQuery("assignedGroup = ?1", groupName, status, deadlineBefore, deadlineAfter, offset, limit);
     }
 
     /** Returns all tasks, with optional filters. */
     public static List<TaskView> findAllFiltered(TaskStatus status,
-                                                  Instant deadlineBefore, Instant deadlineAfter) {
-        return buildFilteredQuery(null, null, status, deadlineBefore, deadlineAfter);
+                                                  Instant deadlineBefore, Instant deadlineAfter,
+                                                  int offset, int limit) {
+        return buildFilteredQuery(null, null, status, deadlineBefore, deadlineAfter, offset, limit);
     }
 
     // -------------------------------------------------------------------------
@@ -79,8 +83,9 @@ public class TaskView extends PanacheEntityBase {
     // base forms the mandatory part (e.g., "assignedUser = ?1").
     // -------------------------------------------------------------------------
     private static List<TaskView> buildFilteredQuery(String base, Object arg1,
-                                                      TaskStatus status,
-                                                      Instant deadlineBefore, Instant deadlineAfter) {
+                                                       TaskStatus status,
+                                                       Instant deadlineBefore, Instant deadlineAfter,
+                                                       int offset, int limit) {
         var sb = new StringBuilder();
         var params = new java.util.ArrayList<>();
 
@@ -112,6 +117,8 @@ public class TaskView extends PanacheEntityBase {
         }
 
         String query = sb.isEmpty() ? "order by createdAt" : sb + " order by createdAt";
-        return list(query, params.toArray());
+        PanacheQuery<TaskView> panacheQuery = find(query, params.toArray());
+        panacheQuery.range(offset, offset + limit - 1);
+        return panacheQuery.list();
     }
 }

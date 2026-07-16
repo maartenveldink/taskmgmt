@@ -50,7 +50,8 @@ class TaskBackendFlowTest {
         commandDispatchHarness.dispatch(new AssignTaskCommand(taskId, "alice", AssigneeType.USER));
         commandDispatchHarness.dispatch(new StartTaskCommand(taskId));
 
-        List<TaskView> inProgressTasks = query(new GetAllTasksQuery(TaskStatus.IN_PROGRESS, null, null), TaskView.class);
+        List<TaskView> inProgressTasks = query(
+                new GetAllTasksQuery(TaskStatus.IN_PROGRESS, null, null, 0, 50), TaskView.class);
         assertTrue(inProgressTasks.stream().anyMatch(task -> taskId.equals(task.taskId)));
 
         long domainEventCount = count(

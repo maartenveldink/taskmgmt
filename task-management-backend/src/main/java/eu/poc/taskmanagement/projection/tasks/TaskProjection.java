@@ -127,21 +127,25 @@ public class TaskProjection {
     @QueryHandler
     @Transactional
     public List<TaskView> handle(GetAllTasksQuery query) {
-        return TaskView.findAllFiltered(query.status(), query.deadlineBefore(), query.deadlineAfter());
+        return TaskView.findAllFiltered(
+                query.status(), query.deadlineBefore(), query.deadlineAfter(),
+                query.offset(), query.limit());
     }
 
     @QueryHandler
     @Transactional
     public List<TaskView> handle(GetTasksByUserQuery query) {
         return TaskView.findByUser(query.userName(), query.status(),
-                query.deadlineBefore(), query.deadlineAfter());
+                query.deadlineBefore(), query.deadlineAfter(),
+                query.offset(), query.limit());
     }
 
     @QueryHandler
     @Transactional
     public List<TaskView> handle(GetTasksByGroupQuery query) {
         return TaskView.findByGroup(query.groupName(), query.status(),
-                query.deadlineBefore(), query.deadlineAfter());
+                query.deadlineBefore(), query.deadlineAfter(),
+                query.offset(), query.limit());
     }
 
     // =========================================================================

@@ -261,4 +261,17 @@ class TaskResourceTest {
                 .body("code", equalTo("VALIDATION_ERROR"))
                 .body("message", containsString("title"));
     }
+
+    @Test
+    @Order(12)
+    @DisplayName("GET /tasks with invalid pagination limit — returns standardized bad request")
+    void invalidPaginationLimitReturnsBadRequest() {
+        given()
+        .when()
+                .get("/tasks?limit=999")
+        .then()
+                .statusCode(400)
+                .body("code", equalTo("BAD_REQUEST"))
+                .body("message", containsString("limit"));
+    }
 }
