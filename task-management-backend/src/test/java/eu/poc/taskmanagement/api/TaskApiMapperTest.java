@@ -1,0 +1,94 @@
+package eu.poc.taskmanagement.api;
+
+import eu.poc.taskmanagement.generated.model.AssigneeType;
+import eu.poc.taskmanagement.generated.model.AssignTaskRequest;
+import eu.poc.taskmanagement.generated.model.CreateTaskRequest;
+import eu.poc.taskmanagement.generated.model.TaskStatus;
+import eu.poc.taskmanagement.projection.audittrail.AuditTrailEntry;
+import eu.poc.taskmanagement.projection.tasks.TaskView;
+import org.junit.jupiter.api.Test;
+
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+class TaskApiMapperTest {
+
+    private final TaskApiMapper mapper = new TaskApiMapper();
+
+    @Test
+    void mapsGeneratedCreateRequestToInternalDto() {
+        OffsetDateTime deadline = OffsetDateTime.now(ZoneOffset.UTC).plusDays(1);
+        CreateTaskRequest request = new CreateTaskRequest()
+                .correlationId("corr-1")
+                .title("title")
+                .description("desc")
+                .groupName("group-a")
+                .deadline(deadline);
+
+        var mapped = mapper.toInternal(request);
+
+        assertEquals("corr-1", mapped.correlationId());
+        assertEquals("title", mapped.title());
+        assertEquals("desc", mapped.description());
+        assertEquals("group-a", mapped.groupName());
+        assertEquals(deadline.toInstant(), mapped.deadline());
+    }
+
+    @Test
+    void mapsGeneratedAssignRequestToInternalDto() {
+        AssignTaskRequest request = new AssignTaskRequest()
+                .assigneeName("alice")
+                .assigneeType(AssigneeType.USER);
+
+        var mapped = mapper.toInternal(request);
+
+        assertEquals("alice", mapped.assigneeName());
+        assertEquals(eu.poc.taskmanagement.model.command.AssigneeType.USER, mapped.assigneeType());
+    }
+
+    @Test
+    void mapsProjectionTaskViewToGeneratedTaskView() {
+        TaskView source = new TaskView();
+        source.taskId = "task-1";
+        source.title = "title";
+        source.description = "desc";
+        source.assignedGroup = "group-a";
+        source.assignedUser = "alice";
+        source.status = eu.poc.taskmanagement.model.TaskStatus.IN_PROGRESS;
+        source.deadline = Instant.now().plusSeconds(3600);
+        source.createdAt = Instant.now().minusSeconds(60);
+        source.updatedAt = Instant.now();
+
+        var mapped = mapper.toGenerated(source);
+
+        assertEquals("task-1", mapped.getTaskId());
+        assertEquals(TaskStatus.IN_PROGRESS, mapped.getStatus());
+        assertNotNull(mapped.getDeadline());
+        assertNotNull(mapped.getCreatedAt());
+        assertNotNull(mapped.getUpdatedAt());
+    }
+
+    @Test
+    void mapsProjectionAuditEntryToGeneratedAuditEntry() {
+        AuditTrailEntry source = new AuditTrailEntry();
+        source.id = 42L;
+        source.taskId = "task-2";
+        source.eventType = "TaskCreatedEvent";
+        source.payload = "{\"key\":\"value\"}";
+        source.eventTimestamp = Instant.now().minusSeconds(10);
+        source.recordedAt = Instant.now();
+
+        var mapped = mapper.toGenerated(source);
+
+        assertEquals(42L, mapped.getId());
+        assertEquals("task-2", mapped.getTaskId());
+        assertEquals("TaskCreatedEvent", mapped.getEventType());
+        assertEquals("{\"key\":\"value\"}", mapped.getPayload());
+        assertNotNull(mapped.getEventTimestamp());
+        assertNotNull(mapped.getRecordedAt());
+    }
+}

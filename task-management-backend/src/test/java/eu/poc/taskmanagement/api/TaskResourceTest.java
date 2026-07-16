@@ -52,7 +52,7 @@ class TaskResourceTest {
         .when()
                 .post("/tasks")
         .then()
-                .statusCode(200);
+                .statusCode(204);
     }
 
     @Test
@@ -115,7 +115,7 @@ class TaskResourceTest {
         .when()
                 .post("/tasks/" + TASK_ID + "/assign")
         .then()
-                .statusCode(200);
+                .statusCode(204);
 
         given()
         .when()
@@ -138,7 +138,7 @@ class TaskResourceTest {
         .when()
                 .post("/tasks/" + TASK_ID + "/start")
         .then()
-                .statusCode(200);
+                .statusCode(204);
 
         given()
         .when()
@@ -160,7 +160,7 @@ class TaskResourceTest {
         .when()
                 .post("/tasks/" + TASK_ID + "/complete")
         .then()
-                .statusCode(200);
+                .statusCode(204);
 
         given()
         .when()
@@ -228,7 +228,7 @@ class TaskResourceTest {
         .when()
                 .post("/tasks")
         .then()
-                .statusCode(200);
+                .statusCode(204);
 
         // Wait for the Quartz job to fire.
         Thread.sleep(3000);
@@ -271,7 +271,7 @@ class TaskResourceTest {
                 .get("/tasks?limit=999")
         .then()
                 .statusCode(400)
-                .body("code", equalTo("BAD_REQUEST"))
+                .body("code", equalTo("VALIDATION_ERROR"))
                 .body("message", containsString("limit"));
     }
 
@@ -420,7 +420,7 @@ class TaskResourceTest {
                 .get("/tasks?offset=-1")
         .then()
                 .statusCode(400)
-                .body("code", equalTo("BAD_REQUEST"))
+                .body("code", equalTo("VALIDATION_ERROR"))
                 .body("message", containsString("offset"));
     }
 

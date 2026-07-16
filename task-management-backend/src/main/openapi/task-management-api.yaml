@@ -1,0 +1,568 @@
+openapi: 3.0.3
+info:
+  title: Task Management API
+  version: 1.0.0
+  description: Generated HTTP boundary for task management commands and queries.
+servers:
+  - url: /
+tags:
+  - name: Tasks
+paths:
+  /tasks:
+    post:
+      tags: [Tasks]
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '200':
+          description: Command accepted
+        '400':
+          description: Validation or bad request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    get:
+      tags: [Tasks]
+      operationId: getAllTasks
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/TaskStatus'
+        - in: query
+          name: deadlineBefore
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: deadlineAfter
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Query result
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskView'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /tasks/{id}/assign:
+    post:
+      tags: [Tasks]
+      operationId: assignTask
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignTaskRequest'
+      responses:
+        '200':
+          description: Command accepted
+        '400':
+          description: Validation or bad request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /tasks/{id}/reassign:
+    post:
+      tags: [Tasks]
+      operationId: reassignTask
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReassignTaskRequest'
+      responses:
+        '200':
+          description: Command accepted
+        '400':
+          description: Validation or bad request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /tasks/{id}/start:
+    post:
+      tags: [Tasks]
+      operationId: startTask
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        '200':
+          description: Command accepted
+        '400':
+          description: Validation or bad request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /tasks/{id}/complete:
+    post:
+      tags: [Tasks]
+      operationId: completeTask
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        '200':
+          description: Command accepted
+        '400':
+          description: Validation or bad request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /tasks/{id}/cancel:
+    post:
+      tags: [Tasks]
+      operationId: cancelTask
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelTaskRequest'
+      responses:
+        '200':
+          description: Command accepted
+        '400':
+          description: Validation or bad request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /tasks/{id}/reject:
+    post:
+      tags: [Tasks]
+      operationId: rejectTask
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectTaskRequest'
+      responses:
+        '200':
+          description: Command accepted
+        '400':
+          description: Validation or bad request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /tasks/user/{userName}:
+    get:
+      tags: [Tasks]
+      operationId: getTasksByUser
+      parameters:
+        - in: path
+          name: userName
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/TaskStatus'
+        - in: query
+          name: deadlineBefore
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: deadlineAfter
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Query result
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskView'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /tasks/group/{groupName}:
+    get:
+      tags: [Tasks]
+      operationId: getTasksByGroup
+      parameters:
+        - in: path
+          name: groupName
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/TaskStatus'
+        - in: query
+          name: deadlineBefore
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: deadlineAfter
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Query result
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskView'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /tasks/{id}/audit:
+    get:
+      tags: [Tasks]
+      operationId: getAuditTrail
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        '200':
+          description: Audit trail result
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditTrailEntry'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+components:
+  schemas:
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+    AssigneeType:
+      type: string
+      enum: [USER, GROUP]
+
+    TaskStatus:
+      type: string
+      enum: [CREATED, ASSIGNED, IN_PROGRESS, DONE, CANCELLED, REJECTED]
+
+    CreateTaskRequest:
+      type: object
+      required: [correlationId, title, deadline]
+      properties:
+        correlationId:
+          type: string
+          minLength: 1
+          maxLength: 100
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 4000
+        groupName:
+          type: string
+          maxLength: 100
+        deadline:
+          type: string
+          format: date-time
+
+    AssignTaskRequest:
+      type: object
+      required: [assigneeName, assigneeType]
+      properties:
+        assigneeName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        assigneeType:
+          $ref: '#/components/schemas/AssigneeType'
+
+    ReassignTaskRequest:
+      type: object
+      required: [newAssigneeName, newAssigneeType]
+      properties:
+        newAssigneeName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        newAssigneeType:
+          $ref: '#/components/schemas/AssigneeType'
+
+    CancelTaskRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 1000
+
+    RejectTaskRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 1000
+
+    TaskView:
+      type: object
+      properties:
+        taskId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        assignedGroup:
+          type: string
+        assignedUser:
+          type: string
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        deadline:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AuditTrailEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        taskId:
+          type: string
+        eventTimestamp:
+          type: string
+          format: date-time
+        eventType:
+          type: string
+        payload:
+          type: string
+        recordedAt:
+          type: string
+          format: date-time

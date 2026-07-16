@@ -15,6 +15,8 @@ import eu.poc.taskmanagement.model.command.RejectTaskCommand;
 import eu.poc.taskmanagement.model.command.StartTaskCommand;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.commandhandling.CommandExecutionException;
@@ -29,7 +31,11 @@ class TaskCommandDispatcher {
     @Inject
     CommandGateway commandGateway;
 
+    @Inject
+    Validator validator;
+
     Response createTask(CreateTaskRequest req, String defaultGroup) {
+        validate(req);
         String group = (req.groupName() != null && !req.groupName().isBlank())
                 ? req.groupName() : defaultGroup;
 
@@ -43,10 +49,12 @@ class TaskCommandDispatcher {
     }
 
     Response assignTask(String id, AssignTaskRequest req) {
+        validate(req);
         return dispatch(new AssignTaskCommand(id, req.assigneeName(), req.assigneeType()));
     }
 
     Response reassignTask(String id, ReassignTaskRequest req) {
+        validate(req);
         return dispatch(new ReassignTaskCommand(id, req.newAssigneeName(), req.newAssigneeType()));
     }
 
@@ -60,11 +68,17 @@ class TaskCommandDispatcher {
 
     Response cancelTask(String id, CancelTaskRequest req) {
         String reason = req != null ? req.reason() : null;
+        if (req != null) {
+            validate(req);
+        }
         return dispatch(new CancelTaskCommand(id, reason));
     }
 
     Response rejectTask(String id, RejectTaskRequest req) {
         String reason = req != null ? req.reason() : null;
+        if (req != null) {
+            validate(req);
+        }
         return dispatch(new RejectTaskCommand(id, reason));
     }
 
@@ -108,5 +122,12 @@ class TaskCommandDispatcher {
         return Response.serverError()
                 .entity(new ApiError("INTERNAL_ERROR", "An unexpected server error occurred."))
                 .build();
+    }
+
+    private void validate(Object request) {
+        var violations = validator.validate(request);
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException(violations);
+        }
     }
 }
