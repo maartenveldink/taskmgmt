@@ -1,5 +1,9 @@
-package eu.poc.taskmanagement.api;
+package eu.poc.taskmanagement.api.http;
 
+import eu.poc.taskmanagement.api.error.ApiError;
+import eu.poc.taskmanagement.api.mapping.TasksHttpMapper;
+import eu.poc.taskmanagement.application.command.TaskCommandApplicationService;
+import eu.poc.taskmanagement.application.query.TaskQueryApplicationService;
 import eu.poc.taskmanagement.generated.api.TasksApi;
 import eu.poc.taskmanagement.generated.model.AssignTaskRequest;
 import eu.poc.taskmanagement.generated.model.AuditTrailEntry;
@@ -12,26 +16,33 @@ import eu.poc.taskmanagement.generated.model.TaskView;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.axonframework.modelling.command.AggregateStreamCreationException;
+import org.axonframework.modelling.command.ConcurrencyException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 
 @ApplicationScoped
 @Path("/tasks")
-public class GeneratedTasksApiResource implements TasksApi {
+public class TasksHttpResource implements TasksApi {
 
     @Inject
-    TaskCommandDispatcher commandDispatcher;
+    TaskCommandApplicationService commandService;
 
     @Inject
-    TaskQueryService queryService;
+    TaskQueryApplicationService queryService;
 
     @Inject
-    TaskApiMapper mapper;
+    TasksHttpMapper mapper;
+
+    @Inject
+    Validator validator;
 
     @ConfigProperty(name = "task.default-group", defaultValue = "unassigned")
     String defaultGroup;
@@ -39,50 +50,48 @@ public class GeneratedTasksApiResource implements TasksApi {
     @Override
     @Transactional
     public void createTask(CreateTaskRequest createTaskRequest) {
-        Response response = commandDispatcher.createTask(mapper.toInternal(createTaskRequest), defaultGroup);
-        ensureCommandSucceeded(response);
+        validate(mapper.toInternal(createTaskRequest));
+        executeCommand(() -> commandService.handle(mapper.toCreateTaskCommand(createTaskRequest, defaultGroup)));
     }
 
     @Override
     @Transactional
     public void assignTask(String id, AssignTaskRequest assignTaskRequest) {
-        Response response = commandDispatcher.assignTask(id, mapper.toInternal(assignTaskRequest));
-        ensureCommandSucceeded(response);
+        validate(mapper.toInternal(assignTaskRequest));
+        executeCommand(() -> commandService.handle(mapper.toAssignTaskCommand(id, assignTaskRequest)));
     }
 
     @Override
     @Transactional
     public void reassignTask(String id, ReassignTaskRequest reassignTaskRequest) {
-        Response response = commandDispatcher.reassignTask(id, mapper.toInternal(reassignTaskRequest));
-        ensureCommandSucceeded(response);
+        validate(mapper.toInternal(reassignTaskRequest));
+        executeCommand(() -> commandService.handle(mapper.toReassignTaskCommand(id, reassignTaskRequest)));
     }
 
     @Override
     @Transactional
     public void startTask(String id) {
-        Response response = commandDispatcher.startTask(id);
-        ensureCommandSucceeded(response);
+        executeCommand(() -> commandService.handle(mapper.toStartTaskCommand(id)));
     }
 
     @Override
     @Transactional
     public void completeTask(String id) {
-        Response response = commandDispatcher.completeTask(id);
-        ensureCommandSucceeded(response);
+        executeCommand(() -> commandService.handle(mapper.toCompleteTaskCommand(id)));
     }
 
     @Override
     @Transactional
     public void cancelTask(String id, CancelTaskRequest cancelTaskRequest) {
-        Response response = commandDispatcher.cancelTask(id, mapper.toInternal(cancelTaskRequest));
-        ensureCommandSucceeded(response);
+        validate(mapper.toInternal(cancelTaskRequest));
+        executeCommand(() -> commandService.handle(mapper.toCancelTaskCommand(id, cancelTaskRequest)));
     }
 
     @Override
     @Transactional
     public void rejectTask(String id, RejectTaskRequest rejectTaskRequest) {
-        Response response = commandDispatcher.rejectTask(id, mapper.toInternal(rejectTaskRequest));
-        ensureCommandSucceeded(response);
+        validate(mapper.toInternal(rejectTaskRequest));
+        executeCommand(() -> commandService.handle(mapper.toRejectTaskCommand(id, rejectTaskRequest)));
     }
 
     @Override
@@ -143,10 +152,37 @@ public class GeneratedTasksApiResource implements TasksApi {
         return mapper.toGeneratedAuditEntries(entries);
     }
 
-    private void ensureCommandSucceeded(Response response) {
-        if (response.getStatus() >= 400) {
-            throw new WebApplicationException(response);
+    private void executeCommand(Runnable commandOperation) {
+        try {
+            commandOperation.run();
+        } catch (RuntimeException ex) {
+            throw new WebApplicationException(mapExceptionToResponse(ex));
         }
+    }
+
+    private Response mapExceptionToResponse(Throwable ex) {
+        String message = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
+        if (ex instanceof IllegalStateException
+                || ex instanceof AggregateStreamCreationException
+                || ex instanceof ConcurrencyException) {
+            return Response.status(Response.Status.CONFLICT)
+                    .entity(new ApiError("CONFLICT", message))
+                    .build();
+        }
+        if (ex instanceof IllegalArgumentException) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ApiError("BAD_REQUEST", message))
+                    .build();
+        }
+        String exName = ex.getClass().getSimpleName();
+        if (exName.contains("NotFound") || exName.contains("AggregateNotFound")) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ApiError("NOT_FOUND", message))
+                    .build();
+        }
+        return Response.serverError()
+                .entity(new ApiError("INTERNAL_ERROR", "An unexpected server error occurred."))
+                .build();
     }
 
     private int sanitizeOffset(Integer offset) {
@@ -163,5 +199,15 @@ public class GeneratedTasksApiResource implements TasksApi {
             throw new IllegalArgumentException("limit must be between 1 and 200");
         }
         return effectiveLimit;
+    }
+
+    private void validate(Object request) {
+        if (request == null) {
+            return;
+        }
+        var violations = validator.validate(request);
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException(violations);
+        }
     }
 }

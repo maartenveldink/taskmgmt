@@ -21,6 +21,12 @@ class PackageBoundariesArchTest {
     static final ArchTests projectionIsReadSideOnly = ArchTests.in(ProjectionBoundaryRules.class);
 
     @ArchTest
+    static final ArchTests apiBoundaryRules = ArchTests.in(ApiBoundaryRules.class);
+
+    @ArchTest
+    static final ArchTests applicationBoundaryRules = ArchTests.in(ApplicationBoundaryRules.class);
+
+    @ArchTest
     static final ArchTests integrationIsAdapterOnly = ArchTests.in(IntegrationBoundaryRules.class);
 
     @ArchTest
@@ -38,10 +44,16 @@ class PackageBoundariesArchTest {
         static final com.tngtech.archunit.lang.ArchRule modelDoesNotDependOnOuterLayers =
                 noClasses()
                         .that()
-                        .resideInAPackage("..model..")
+                        .resideInAPackage("eu.poc.taskmanagement.model..")
                         .should()
                         .dependOnClassesThat()
-                        .resideInAnyPackage("..api..", "..projection..", "..integration..", "..config..", "..saga..");
+                        .resideInAnyPackage(
+                                "eu.poc.taskmanagement.api..",
+                                "eu.poc.taskmanagement.projection..",
+                                "eu.poc.taskmanagement.integration..",
+                                "eu.poc.taskmanagement.config..",
+                                "eu.poc.taskmanagement.saga..",
+                                "eu.poc.taskmanagement.application..");
     }
 
     static class ProjectionBoundaryRules {
@@ -49,10 +61,41 @@ class PackageBoundariesArchTest {
         static final com.tngtech.archunit.lang.ArchRule projectionDoesNotDependOnApiOrInfrastructure =
                 noClasses()
                         .that()
-                        .resideInAPackage("..projection..")
+                        .resideInAPackage("eu.poc.taskmanagement.projection..")
                         .should()
                         .dependOnClassesThat()
-                        .resideInAnyPackage("..api..", "..integration..", "..config..", "..saga..");
+                        .resideInAnyPackage(
+                                "eu.poc.taskmanagement.api..",
+                                "eu.poc.taskmanagement.integration..",
+                                "eu.poc.taskmanagement.config..",
+                                "eu.poc.taskmanagement.saga..");
+    }
+
+    static class ApiBoundaryRules {
+        @ArchTest
+        static final com.tngtech.archunit.lang.ArchRule apiHttpDoesNotDependOnDomainOrInfrastructure =
+                noClasses()
+                        .that()
+                        .resideInAPackage("eu.poc.taskmanagement.api.http..")
+                        .should()
+                        .dependOnClassesThat()
+                        .resideInAnyPackage(
+                                "eu.poc.taskmanagement.model..",
+                                "eu.poc.taskmanagement.projection..",
+                                "eu.poc.taskmanagement.integration..",
+                                "eu.poc.taskmanagement.saga..",
+                                "eu.poc.taskmanagement.config..");
+    }
+
+    static class ApplicationBoundaryRules {
+        @ArchTest
+        static final com.tngtech.archunit.lang.ArchRule applicationDoesNotDependOnApiHttp =
+                noClasses()
+                        .that()
+                        .resideInAPackage("eu.poc.taskmanagement.application..")
+                        .should()
+                        .dependOnClassesThat()
+                        .resideInAnyPackage("eu.poc.taskmanagement.api.http..");
     }
 
     static class IntegrationBoundaryRules {
@@ -60,10 +103,13 @@ class PackageBoundariesArchTest {
         static final com.tngtech.archunit.lang.ArchRule integrationDoesNotDependOnDomainOrReadModelEntrypoints =
                 noClasses()
                         .that()
-                        .resideInAPackage("..integration..")
+                        .resideInAPackage("eu.poc.taskmanagement.integration..")
                         .should()
                         .dependOnClassesThat()
-                        .resideInAnyPackage("..api..", "..projection..", "..saga..");
+                        .resideInAnyPackage(
+                                "eu.poc.taskmanagement.api..",
+                                "eu.poc.taskmanagement.projection..",
+                                "eu.poc.taskmanagement.saga..");
     }
 
     static class SagaBoundaryRules {
@@ -71,9 +117,9 @@ class PackageBoundariesArchTest {
         static final com.tngtech.archunit.lang.ArchRule sagaDoesNotDependOnApiOrReadModel =
                 noClasses()
                         .that()
-                        .resideInAPackage("..saga..")
+                        .resideInAPackage("eu.poc.taskmanagement.saga..")
                         .should()
                         .dependOnClassesThat()
-                        .resideInAnyPackage("..api..", "..projection..");
+                        .resideInAnyPackage("eu.poc.taskmanagement.api..", "eu.poc.taskmanagement.projection..");
     }
 }
