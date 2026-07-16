@@ -66,7 +66,9 @@ class TaskResourceTest {
         .when()
                 .post("/tasks")
         .then()
-                .statusCode(409);
+                .statusCode(409)
+                .body("code", equalTo("CONFLICT"))
+                .body("message", not(emptyOrNullString()));
     }
 
     // =========================================================================
@@ -238,5 +240,25 @@ class TaskResourceTest {
         .then()
                 .statusCode(200)
                 .body("eventType", hasItem("TaskDeadlineExceededEvent"));
+    }
+
+    @Test
+    @Order(11)
+    @DisplayName("POST /tasks with invalid body — returns standardized validation error")
+    void invalidBodyReturnsValidationErrorEnvelope() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(new CreateTaskRequest(
+                        "invalid-" + UUID.randomUUID(),
+                        "   ",
+                        "Missing title should fail validation",
+                        "team-a",
+                        Instant.now().plus(1, ChronoUnit.DAYS)))
+        .when()
+                .post("/tasks")
+        .then()
+                .statusCode(400)
+                .body("code", equalTo("VALIDATION_ERROR"))
+                .body("message", containsString("title"));
     }
 }
