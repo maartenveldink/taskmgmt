@@ -27,7 +27,7 @@ import java.lang.reflect.Field;
  * <h2>How it works</h2>
  * The injector holds a reference to the fully-built Axon {@link Configuration}.
  * When a Saga instance is created or loaded, {@link #injectResources(Object)}
- * iterates over all {@code @jakarta.inject.Inject}-annotated fields and resolves
+ * iterates over all {@code @Inject}-annotated fields and resolves
  * the value from the configuration:
  * <ul>
  *   <li>{@link DeadlineManager} → {@code configuration.getComponent(DeadlineManager.class)}</li>

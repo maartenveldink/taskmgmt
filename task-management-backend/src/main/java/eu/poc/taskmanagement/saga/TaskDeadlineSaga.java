@@ -3,6 +3,7 @@ package eu.poc.taskmanagement.saga;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import eu.poc.taskmanagement.model.TaskStatus;
 import eu.poc.taskmanagement.model.event.*;
+import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.deadline.DeadlineManager;
 import org.axonframework.deadline.annotation.DeadlineHandler;
@@ -82,14 +83,14 @@ public class TaskDeadlineSaga {
      * Marked {@code transient} so it is excluded from JPA saga state serialisation.
      * Re-injected by {@code CdiResourceInjector} each time the saga is loaded.
      */
-    @jakarta.inject.Inject
+    @Inject
     transient DeadlineManager deadlineManager;
 
     /**
      * Used to publish {@code TaskDeadlineExceededEvent} when a deadline fires.
      * Marked {@code transient} for the same reason as {@code deadlineManager}.
      */
-    @jakarta.inject.Inject
+    @Inject
     transient EventBus eventBus;
 
     // -------------------------------------------------------------------------

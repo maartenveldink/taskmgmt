@@ -7,6 +7,7 @@ import org.axonframework.eventsourcing.EventSourcingHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.modelling.command.AggregateIdentifier;
 import org.axonframework.modelling.command.AggregateLifecycle;
+import java.util.List;
 
 /**
  * Task aggregate — the write-side model.
@@ -43,7 +44,7 @@ public class TaskAggregate {
 
     private TaskStatus status;
     private TaskType taskType;
-    private java.util.List<String> expectedExternalUsers;
+    private List<String> expectedExternalUsers;
     private String assignedGroup;
     private String assignedUser;
 
@@ -175,8 +176,8 @@ public class TaskAggregate {
         this.status = TaskStatus.CREATED;
         this.taskType = event.taskType() != null ? event.taskType() : TaskType.STANDARD;
         this.expectedExternalUsers = event.expectedExternalUsers() != null
-                ? java.util.List.copyOf(event.expectedExternalUsers())
-                : java.util.List.of();
+                ? List.copyOf(event.expectedExternalUsers())
+                : List.of();
         this.assignedGroup = event.assignedGroup();
         this.assignedUser = event.assignedUser();
     }

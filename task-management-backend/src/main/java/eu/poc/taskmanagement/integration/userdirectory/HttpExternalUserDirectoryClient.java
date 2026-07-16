@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class HttpExternalUserDirectoryClient implements ExternalUserDirectoryClient {
@@ -55,7 +56,7 @@ public class HttpExternalUserDirectoryClient implements ExternalUserDirectoryCli
             }
 
             Set<String> users = OBJECT_MAPPER.readValue(response.body(), new TypeReference<LinkedHashSet<String>>() {});
-            return users.stream().map(String::trim).filter(s -> !s.isEmpty()).collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+            return users.stream().map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toCollection(LinkedHashSet::new));
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();

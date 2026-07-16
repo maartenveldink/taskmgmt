@@ -10,6 +10,7 @@ import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import jakarta.persistence.*;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -99,7 +100,7 @@ public class TaskView extends PanacheEntityBase {
                                                         Instant deadlineBefore, Instant deadlineAfter,
                                                         int offset, int limit) {
         var sb = new StringBuilder();
-        var params = new java.util.ArrayList<>();
+        var params = new ArrayList<>();
 
         // Append caller-provided base condition
         if (base != null) {
