@@ -1,10 +1,6 @@
 package eu.poc.taskmanagement.api;
 
 import eu.poc.taskmanagement.model.TaskStatus;
-import eu.poc.taskmanagement.model.command.AssignTaskCommand;
-import eu.poc.taskmanagement.model.command.AssigneeType;
-import eu.poc.taskmanagement.model.command.CreateTaskCommand;
-import eu.poc.taskmanagement.model.command.StartTaskCommand;
 import eu.poc.taskmanagement.projection.audittrail.AuditTrailEntry;
 import eu.poc.taskmanagement.projection.tasks.TaskView;
 import io.quarkus.test.junit.QuarkusTest;
@@ -12,12 +8,13 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static eu.poc.taskmanagement.api.CreateTaskCommandTestDataBuilder.aCreateTaskCommand;
+import static eu.poc.taskmanagement.api.AssignTaskCommandTestDataBuilder.anAssignTaskCommand;
+import static eu.poc.taskmanagement.api.StartTaskCommandTestDataBuilder.aStartTaskCommand;
 
 /**
  * End-to-end integration test in one Quarkus setup:
@@ -34,12 +31,28 @@ class TaskBackendFlowTest {
 
     @Test
     void commandSagaAndQueryStoresWorkInSingleSetup() throws Exception {
-        String taskId = "flow-" + UUID.randomUUID();
-        Instant deadline = Instant.now().plusSeconds(1);
+        String taskId = "flow-" + System.nanoTime();
 
-        commandDispatchHarness.dispatch(new CreateTaskCommand(taskId, "Flow task", "Unified setup test", "ops-team", deadline));
-        commandDispatchHarness.dispatch(new AssignTaskCommand(taskId, "alice", AssigneeType.USER));
-        commandDispatchHarness.dispatch(new StartTaskCommand(taskId));
+        // Build and dispatch commands using fluent builders
+        commandDispatchHarness.dispatch(
+                aCreateTaskCommand()
+                        .withTaskId(taskId)
+                        .withTitle("Flow task")
+                        .withDescription("Unified setup test")
+                        .withGroupName("ops-team")
+                        .withDeadlineInSeconds(1)
+                        .build());
+
+        commandDispatchHarness.dispatch(
+                anAssignTaskCommand()
+                        .withTaskId(taskId)
+                        .assignToUser("alice")
+                        .build());
+
+        commandDispatchHarness.dispatch(
+                aStartTaskCommand()
+                        .withTaskId(taskId)
+                        .build());
 
         // Verify task is in-progress via read model
         List<TaskView> inProgressTasks = queryStore.findTasksByStatus(TaskStatus.IN_PROGRESS);
