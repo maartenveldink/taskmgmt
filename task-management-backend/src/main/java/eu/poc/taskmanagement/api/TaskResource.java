@@ -1,8 +1,10 @@
 package eu.poc.taskmanagement.api;
 
-import eu.poc.taskmanagement.model.command.*;
-import eu.poc.taskmanagement.api.dto.*;
-import eu.poc.taskmanagement.api.error.ApiError;
+import eu.poc.taskmanagement.api.dto.AssignTaskRequest;
+import eu.poc.taskmanagement.api.dto.CancelTaskRequest;
+import eu.poc.taskmanagement.api.dto.CreateTaskRequest;
+import eu.poc.taskmanagement.api.dto.ReassignTaskRequest;
+import eu.poc.taskmanagement.api.dto.RejectTaskRequest;
 import eu.poc.taskmanagement.model.TaskStatus;
 import eu.poc.taskmanagement.projection.tasks.query.GetAllTasksQuery;
 import eu.poc.taskmanagement.projection.audittrail.query.GetAuditTrailByTaskQuery;
@@ -13,14 +15,12 @@ import eu.poc.taskmanagement.projection.tasks.TaskView;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.axonframework.commandhandling.CommandExecutionException;
-import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.axonframework.messaging.responsetypes.ResponseTypes;
-import org.axonframework.modelling.command.AggregateStreamCreationException;
-import org.axonframework.modelling.command.ConcurrencyException;
 import org.axonframework.queryhandling.QueryGateway;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import lombok.extern.slf4j.Slf4j;
@@ -71,7 +71,7 @@ import java.util.concurrent.ExecutionException;
 public class TaskResource {
 
     @Inject
-    CommandGateway commandGateway;
+    TaskCommandDispatcher commandDispatcher;
 
     @Inject
     QueryGateway queryGateway;
@@ -97,38 +97,28 @@ public class TaskResource {
     @POST
     @Transactional
     public Response createTask(@Valid CreateTaskRequest req) {
-        String group = (req.groupName() != null && !req.groupName().isBlank())
-                ? req.groupName() : defaultGroup;
-
-        log.debug("POST /tasks — correlationId={}, group={}", req.correlationId(), group);
-
-        return dispatchCommand(new CreateTaskCommand(
-                req.correlationId(),
-                req.title(),
-                req.description(),
-                group,
-                req.deadline()
-        ));
+        log.debug("POST /tasks — correlationId={}", req.correlationId());
+        return commandDispatcher.createTask(req, defaultGroup);
     }
 
     /** Assigns the task to a user or group (status → ASSIGNED). */
     @POST
     @Path("/{id}/assign")
     @Transactional
-    public Response assignTask(@PathParam("id") String id,
+    public Response assignTask(@PathParam("id") @NotBlank @Size(max = 100) String id,
                                @Valid AssignTaskRequest req) {
         log.debug("POST /tasks/{}/assign — assignee={}", id, req.assigneeName());
-        return dispatchCommand(new AssignTaskCommand(id, req.assigneeName(), req.assigneeType()));
+        return commandDispatcher.assignTask(id, req);
     }
 
     /** Reassigns the task to a different user or group without status change. */
     @POST
     @Path("/{id}/reassign")
     @Transactional
-    public Response reassignTask(@PathParam("id") String id,
+    public Response reassignTask(@PathParam("id") @NotBlank @Size(max = 100) String id,
                                  @Valid ReassignTaskRequest req) {
         log.debug("POST /tasks/{}/reassign → {}", id, req.newAssigneeName());
-        return dispatchCommand(new ReassignTaskCommand(id, req.newAssigneeName(), req.newAssigneeType()));
+        return commandDispatcher.reassignTask(id, req);
     }
 
     /** Moves the task from ASSIGNED to IN_PROGRESS. */
@@ -136,9 +126,9 @@ public class TaskResource {
     @Path("/{id}/start")
     @Consumes(MediaType.WILDCARD)   // no request body — override class-level @Consumes
     @Transactional
-    public Response startTask(@PathParam("id") String id) {
+    public Response startTask(@PathParam("id") @NotBlank @Size(max = 100) String id) {
         log.debug("POST /tasks/{}/start", id);
-        return dispatchCommand(new StartTaskCommand(id));
+        return commandDispatcher.startTask(id);
     }
 
     /** Moves the task from IN_PROGRESS to DONE (terminal). */
@@ -146,29 +136,29 @@ public class TaskResource {
     @Path("/{id}/complete")
     @Consumes(MediaType.WILDCARD)   // no request body — override class-level @Consumes
     @Transactional
-    public Response completeTask(@PathParam("id") String id) {
+    public Response completeTask(@PathParam("id") @NotBlank @Size(max = 100) String id) {
         log.debug("POST /tasks/{}/complete", id);
-        return dispatchCommand(new CompleteTaskCommand(id));
+        return commandDispatcher.completeTask(id);
     }
 
     /** Cancels the task (terminal). Accepts an optional reason body. */
     @POST
     @Path("/{id}/cancel")
     @Transactional
-    public Response cancelTask(@PathParam("id") String id, CancelTaskRequest req) {
-        String reason = (req != null) ? req.reason() : null;
-        log.debug("POST /tasks/{}/cancel — reason={}", id, reason);
-        return dispatchCommand(new CancelTaskCommand(id, reason));
+    public Response cancelTask(@PathParam("id") @NotBlank @Size(max = 100) String id,
+                               @Valid CancelTaskRequest req) {
+        log.debug("POST /tasks/{}/cancel", id);
+        return commandDispatcher.cancelTask(id, req);
     }
 
     /** Rejects the task (terminal). Accepts an optional reason body. */
     @POST
     @Path("/{id}/reject")
     @Transactional
-    public Response rejectTask(@PathParam("id") String id, RejectTaskRequest req) {
-        String reason = (req != null) ? req.reason() : null;
-        log.debug("POST /tasks/{}/reject — reason={}", id, reason);
-        return dispatchCommand(new RejectTaskCommand(id, reason));
+    public Response rejectTask(@PathParam("id") @NotBlank @Size(max = 100) String id,
+                               @Valid RejectTaskRequest req) {
+        log.debug("POST /tasks/{}/reject", id);
+        return commandDispatcher.rejectTask(id, req);
     }
 
     // =========================================================================
@@ -200,7 +190,7 @@ public class TaskResource {
     @GET
     @Path("/user/{userName}")
     public List<TaskView> getTasksByUser(
-            @PathParam("userName") String userName,
+            @PathParam("userName") @NotBlank @Size(max = 100) String userName,
             @QueryParam("status") TaskStatus status,
             @QueryParam("deadlineBefore") Instant deadlineBefore,
             @QueryParam("deadlineAfter") Instant deadlineAfter,
@@ -216,7 +206,7 @@ public class TaskResource {
     @GET
     @Path("/group/{groupName}")
     public List<TaskView> getTasksByGroup(
-            @PathParam("groupName") String groupName,
+            @PathParam("groupName") @NotBlank @Size(max = 100) String groupName,
             @QueryParam("status") TaskStatus status,
             @QueryParam("deadlineBefore") Instant deadlineBefore,
             @QueryParam("deadlineAfter") Instant deadlineAfter,
@@ -234,69 +224,13 @@ public class TaskResource {
      */
     @GET
     @Path("/{id}/audit")
-    public List<AuditTrailEntry> getAuditTrail(@PathParam("id") String id) {
+    public List<AuditTrailEntry> getAuditTrail(@PathParam("id") @NotBlank @Size(max = 100) String id) {
         return query(new GetAuditTrailByTaskQuery(id));
     }
 
     // =========================================================================
     // Helpers
     // =========================================================================
-
-    /**
-     * Dispatches a command synchronously and maps Axon exceptions to HTTP status codes.
-     *
-     * <ul>
-     *   <li>{@code IllegalStateException} — invalid state transition → 409</li>
-     *   <li>{@code IllegalArgumentException} — validation / not-found → 400/404</li>
-     *   <li>Aggregate not found (Axon) → 404</li>
-     *   <li>Anything else → 500</li>
-     * </ul>
-     */
-    private Response dispatchCommand(Object command) {
-        try {
-            commandGateway.sendAndWait(command);
-            return Response.ok().build();
-        } catch (CommandExecutionException ex) {
-            Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
-            return mapExceptionToResponse(cause);
-        } catch (Exception ex) {
-            return mapExceptionToResponse(ex);
-        }
-    }
-
-    private Response mapExceptionToResponse(Throwable ex) {
-        String message = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
-
-        if (ex instanceof IllegalStateException
-                || ex instanceof AggregateStreamCreationException
-                || ex instanceof ConcurrencyException) {
-            // AggregateStreamCreationException — duplicate aggregate ID (sequence 0 PK conflict)
-            // ConcurrencyException            — concurrent write conflict on existing aggregate
-            // IllegalStateException           — invalid state transition (e.g., completing a DONE task)
-            log.debug("Command rejected — conflict: {}", message);
-            return Response.status(Response.Status.CONFLICT)
-                    .entity(new ApiError("CONFLICT", message)).build();
-        }
-
-        if (ex instanceof IllegalArgumentException) {
-            log.debug("Command rejected — bad argument: {}", message);
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(new ApiError("BAD_REQUEST", message)).build();
-        }
-
-        // Axon throws AggregateNotFoundException when the aggregate ID is unknown.
-        String exName = ex.getClass().getSimpleName();
-        if (exName.contains("NotFound") || exName.contains("AggregateNotFound")) {
-            log.debug("Command rejected — not found: {}", message);
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity(new ApiError("NOT_FOUND", message)).build();
-        }
-
-        log.error("Unexpected error processing command", ex);
-        return Response.serverError()
-                .entity(new ApiError("INTERNAL_ERROR", "An unexpected server error occurred."))
-                .build();
-    }
 
     @SuppressWarnings("unchecked")
     private <T> T query(Object queryMessage) {

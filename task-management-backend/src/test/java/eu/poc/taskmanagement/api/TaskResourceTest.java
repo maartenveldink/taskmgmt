@@ -274,4 +274,213 @@ class TaskResourceTest {
                 .body("code", equalTo("BAD_REQUEST"))
                 .body("message", containsString("limit"));
     }
+
+    @Test
+    @Order(13)
+    @DisplayName("POST /tasks with past deadline — returns standardized validation error")
+    void createTaskWithPastDeadlineReturnsValidationError() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(new CreateTaskRequest(
+                        "past-" + UUID.randomUUID(),
+                        "Task with past deadline",
+                        "Should fail @Future validation",
+                        "team-a",
+                        Instant.now().minus(1, ChronoUnit.DAYS)))
+        .when()
+                .post("/tasks")
+        .then()
+                .statusCode(400)
+                .body("code", equalTo("VALIDATION_ERROR"))
+                .body("message", containsString("deadline"));
+    }
+
+    @Test
+    @Order(14)
+    @DisplayName("POST /tasks with too long title — returns standardized validation error")
+    void createTaskWithTooLongTitleReturnsValidationError() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(new CreateTaskRequest(
+                        "long-title-" + UUID.randomUUID(),
+                        "x".repeat(201),
+                        "Title exceeds max length",
+                        "team-a",
+                        Instant.now().plus(1, ChronoUnit.DAYS)))
+        .when()
+                .post("/tasks")
+        .then()
+                .statusCode(400)
+                .body("code", equalTo("VALIDATION_ERROR"))
+                .body("message", containsString("title"));
+    }
+
+    @Test
+    @Order(15)
+    @DisplayName("POST /tasks/{id}/assign with blank assignee — returns standardized validation error")
+    void assignWithBlankAssigneeReturnsValidationError() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(new AssignTaskRequest("   ", AssigneeType.USER))
+        .when()
+                .post("/tasks/" + TASK_ID + "/assign")
+        .then()
+                .statusCode(400)
+                .body("code", equalTo("VALIDATION_ERROR"))
+                .body("message", containsString("assigneeName"));
+    }
+
+    @Test
+    @Order(16)
+    @DisplayName("POST /tasks/{id}/reassign for unknown task — returns 404")
+    void reassignUnknownTaskReturnsNotFound() {
+        String unknownTaskId = "unknown-" + UUID.randomUUID();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(new ReassignTaskRequest("bob", AssigneeType.USER))
+        .when()
+                .post("/tasks/" + unknownTaskId + "/reassign")
+        .then()
+                .statusCode(404)
+                .body("code", equalTo("NOT_FOUND"))
+                .body("message", not(emptyOrNullString()));
+    }
+
+    @Test
+    @Order(17)
+    @DisplayName("POST /tasks/{id}/cancel for unknown task — returns 404")
+    void cancelUnknownTaskReturnsNotFound() {
+        String unknownTaskId = "unknown-" + UUID.randomUUID();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(new CancelTaskRequest("No longer needed"))
+        .when()
+                .post("/tasks/" + unknownTaskId + "/cancel")
+        .then()
+                .statusCode(404)
+                .body("code", equalTo("NOT_FOUND"))
+                .body("message", not(emptyOrNullString()));
+    }
+
+    @Test
+    @Order(18)
+    @DisplayName("POST /tasks/{id}/reject for unknown task — returns 404")
+    void rejectUnknownTaskReturnsNotFound() {
+        String unknownTaskId = "unknown-" + UUID.randomUUID();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(new RejectTaskRequest("Invalid request"))
+        .when()
+                .post("/tasks/" + unknownTaskId + "/reject")
+        .then()
+                .statusCode(404)
+                .body("code", equalTo("NOT_FOUND"))
+                .body("message", not(emptyOrNullString()));
+    }
+
+    @Test
+    @Order(19)
+    @DisplayName("POST /tasks/{id}/cancel with too long reason — returns standardized validation error")
+    void cancelWithTooLongReasonReturnsValidationError() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(new CancelTaskRequest("r".repeat(1001)))
+        .when()
+                .post("/tasks/" + TASK_ID + "/cancel")
+        .then()
+                .statusCode(400)
+                .body("code", equalTo("VALIDATION_ERROR"))
+                .body("message", containsString("reason"));
+    }
+
+    @Test
+    @Order(20)
+    @DisplayName("POST /tasks/{id}/reject with too long reason — returns standardized validation error")
+    void rejectWithTooLongReasonReturnsValidationError() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(new RejectTaskRequest("r".repeat(1001)))
+        .when()
+                .post("/tasks/" + TASK_ID + "/reject")
+        .then()
+                .statusCode(400)
+                .body("code", equalTo("VALIDATION_ERROR"))
+                .body("message", containsString("reason"));
+    }
+
+    @Test
+    @Order(21)
+    @DisplayName("GET /tasks with negative offset — returns standardized bad request")
+    void invalidOffsetReturnsBadRequest() {
+        given()
+        .when()
+                .get("/tasks?offset=-1")
+        .then()
+                .statusCode(400)
+                .body("code", equalTo("BAD_REQUEST"))
+                .body("message", containsString("offset"));
+    }
+
+    @Test
+    @Order(22)
+    @DisplayName("GET /tasks/user/{userName} with overlong path param — returns standardized validation error")
+    void overlongUserNameReturnsValidationError() {
+        String userName = "u".repeat(101);
+
+        given()
+        .when()
+                .get("/tasks/user/" + userName)
+        .then()
+                .statusCode(400)
+                .body("code", equalTo("VALIDATION_ERROR"))
+                .body("message", containsString("userName"));
+    }
+
+    @Test
+    @Order(23)
+    @DisplayName("POST /tasks/{id}/start for unknown task — returns 404")
+    void startUnknownTaskReturnsNotFound() {
+        String unknownTaskId = "unknown-" + UUID.randomUUID();
+
+        given()
+        .when()
+                .post("/tasks/" + unknownTaskId + "/start")
+        .then()
+                .statusCode(404)
+                .body("code", equalTo("NOT_FOUND"))
+                .body("message", not(emptyOrNullString()));
+    }
+
+    @Test
+    @Order(24)
+    @DisplayName("POST /tasks/{id}/complete for unknown task — returns 404")
+    void completeUnknownTaskReturnsNotFound() {
+        String unknownTaskId = "unknown-" + UUID.randomUUID();
+
+        given()
+        .when()
+                .post("/tasks/" + unknownTaskId + "/complete")
+        .then()
+                .statusCode(404)
+                .body("code", equalTo("NOT_FOUND"))
+                .body("message", not(emptyOrNullString()));
+    }
+
+    @Test
+    @Order(25)
+    @DisplayName("POST /tasks/{id}/reassign with blank assignee — returns standardized validation error")
+    void reassignWithBlankAssigneeReturnsValidationError() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(new ReassignTaskRequest("   ", AssigneeType.USER))
+        .when()
+                .post("/tasks/" + TASK_ID + "/reassign")
+        .then()
+                .statusCode(400)
+                .body("code", equalTo("VALIDATION_ERROR"))
+                .body("message", containsString("newAssigneeName"));
+    }
 }
