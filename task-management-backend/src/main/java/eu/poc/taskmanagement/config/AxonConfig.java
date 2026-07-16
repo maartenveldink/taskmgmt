@@ -168,9 +168,8 @@ public class AxonConfig {
 
         // -----------------------------------------------------------------
         // JPA Event Storage Engine (H2 via Hibernate ORM)
-        // Axon's DomainEventEntry and SnapshotEventEntry tables are created
-        // automatically by Hibernate (quarkus.hibernate-orm.database.generation
-        // = drop-and-create in application.yaml).
+        // Axon's DomainEventEntry and SnapshotEventEntry tables are managed by
+        // Hibernate/JPA metadata on startup with non-destructive schema updates.
         // -----------------------------------------------------------------
         // SQLErrorCodesResolver("H2") loads duplicate-key SQL error codes from
         // Axon's built-in SQLErrorCode.properties (H2.duplicateKeyCodes=23001,23505).

@@ -42,8 +42,8 @@
 
   SCHEMA GENERATION
   =================
-  jakarta.persistence.schema-generation.database.action = drop-and-create
-  (PoC convenience — recreates schema on every restart).
+  jakarta.persistence.schema-generation.database.action = update
+  (non-destructive startup; Flyway owns versioned DDL changes).
 -->
 <persistence xmlns="https://jakarta.ee/xml/ns/persistence"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -81,11 +81,11 @@
             <property name="hibernate.dialect"
                       value="org.hibernate.dialect.H2Dialect"/>
             <!--
-              drop-and-create: recreates schema on every start.
-              Acceptable for PoC; change to "none" or "validate" in production.
+              update: keeps existing data and creates missing tables.
+              Flyway migrations provide explicit versioned schema changes.
             -->
             <property name="jakarta.persistence.schema-generation.database.action"
-                      value="drop-and-create"/>
+                      value="update"/>
             <!-- Set to true to log SQL during development -->
             <property name="hibernate.show_sql" value="false"/>
         </properties>
