@@ -1,4 +1,4 @@
-package eu.poc.taskmanagement.api;
+package eu.poc.taskmanagement.testdata;
 
 import eu.poc.taskmanagement.model.command.CompleteTaskCommand;
 import eu.poc.taskmanagement.model.command.CompleteTaskCommand.CompleteTaskCommandBuilder;

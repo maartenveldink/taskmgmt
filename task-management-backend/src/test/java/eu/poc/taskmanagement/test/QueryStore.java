@@ -1,4 +1,4 @@
-package eu.poc.taskmanagement.api;
+package eu.poc.taskmanagement.test;
 
 import eu.poc.taskmanagement.model.TaskStatus;
 import eu.poc.taskmanagement.projection.audittrail.AuditTrailEntry;
@@ -21,7 +21,7 @@ import java.util.List;
  * than infrastructure-specific SQL queries.
  */
 @ApplicationScoped
-class QueryStore {
+public class QueryStore {
 
     @Inject
     QueryGateway queryGateway;
