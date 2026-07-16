@@ -6,15 +6,9 @@ import eu.poc.taskmanagement.model.command.AssigneeType;
 import eu.poc.taskmanagement.model.command.CreateTaskCommand;
 import eu.poc.taskmanagement.model.command.StartTaskCommand;
 import eu.poc.taskmanagement.projection.audittrail.AuditTrailEntry;
-import eu.poc.taskmanagement.projection.audittrail.query.GetAuditTrailByTaskQuery;
 import eu.poc.taskmanagement.projection.tasks.TaskView;
-import eu.poc.taskmanagement.projection.tasks.query.GetAllTasksQuery;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import org.axonframework.messaging.responsetypes.ResponseTypes;
-import org.axonframework.queryhandling.QueryGateway;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -36,10 +30,7 @@ class TaskBackendFlowTest {
     CommandDispatchHarness commandDispatchHarness;
 
     @Inject
-    QueryGateway queryGateway;
-
-    @PersistenceContext
-    EntityManager entityManager;
+    QueryStore queryStore;
 
     @Test
     void commandSagaAndQueryStoresWorkInSingleSetup() throws Exception {
@@ -50,44 +41,23 @@ class TaskBackendFlowTest {
         commandDispatchHarness.dispatch(new AssignTaskCommand(taskId, "alice", AssigneeType.USER));
         commandDispatchHarness.dispatch(new StartTaskCommand(taskId));
 
-        List<TaskView> inProgressTasks = query(
-                new GetAllTasksQuery(TaskStatus.IN_PROGRESS, null, null, 0, 50), TaskView.class);
+        // Verify task is in-progress via read model
+        List<TaskView> inProgressTasks = queryStore.findTasksByStatus(TaskStatus.IN_PROGRESS);
         assertTrue(inProgressTasks.stream().anyMatch(task -> taskId.equals(task.taskId)));
 
-        long domainEventCount = count(
-                "select count(*) from domainevententry where aggregateidentifier = ?1", taskId);
+        // Verify 3 events were published
+        long domainEventCount = queryStore.countDomainEvents(taskId);
         assertEquals(3L, domainEventCount);
 
-        awaitDeadlineExceeded(taskId, Duration.ofSeconds(6));
+        // Wait for deadline to exceed and saga to escalate
+        queryStore.waitForEvent(taskId, "TaskDeadlineExceededEvent", Duration.ofSeconds(6));
 
-        List<AuditTrailEntry> audit = query(new GetAuditTrailByTaskQuery(taskId), AuditTrailEntry.class);
+        // Verify audit trail contains escalation event
+        List<AuditTrailEntry> audit = queryStore.getAuditTrail(taskId);
         assertTrue(audit.stream().anyMatch(entry -> "TaskDeadlineExceededEvent".equals(entry.eventType)));
 
-        long activeSagaAssociations = count(
-                "select count(*) from associationvalueentry where associationvalue = ?1", taskId);
+        // Verify saga has cleaned up its associations
+        long activeSagaAssociations = queryStore.countActiveSagaAssociations(taskId);
         assertEquals(0L, activeSagaAssociations);
-    }
-
-    private <T> List<T> query(Object queryMessage, Class<T> responseType) throws Exception {
-        return queryGateway.query(queryMessage, ResponseTypes.multipleInstancesOf(responseType)).get();
-    }
-
-    private long count(String sql, String parameter) {
-        Number result = (Number) entityManager.createNativeQuery(sql)
-                .setParameter(1, parameter)
-                .getSingleResult();
-        return result.longValue();
-    }
-
-    private void awaitDeadlineExceeded(String taskId, Duration timeout) throws Exception {
-        long timeoutAt = System.nanoTime() + timeout.toNanos();
-        while (System.nanoTime() < timeoutAt) {
-            List<AuditTrailEntry> audit = query(new GetAuditTrailByTaskQuery(taskId), AuditTrailEntry.class);
-            if (audit.stream().anyMatch(entry -> "TaskDeadlineExceededEvent".equals(entry.eventType))) {
-                return;
-            }
-            Thread.sleep(200);
-        }
-        throw new AssertionError("Deadline escalation event not observed within timeout for taskId=" + taskId);
     }
 }
