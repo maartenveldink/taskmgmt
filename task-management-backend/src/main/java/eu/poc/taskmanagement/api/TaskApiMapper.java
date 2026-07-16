@@ -7,6 +7,7 @@ import eu.poc.taskmanagement.api.dto.ReassignTaskRequest;
 import eu.poc.taskmanagement.api.dto.RejectTaskRequest;
 import eu.poc.taskmanagement.generated.model.AssigneeType;
 import eu.poc.taskmanagement.generated.model.TaskStatus;
+import eu.poc.taskmanagement.generated.model.TaskType;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.time.Instant;
@@ -23,7 +24,9 @@ class TaskApiMapper {
                 source.getTitle(),
                 source.getDescription(),
                 source.getGroupName(),
-                toInstant(source.getDeadline())
+                toInstant(source.getDeadline()),
+                toInternal(source.getTaskType()),
+                source.getExpectedExternalUsers()
         );
     }
 
@@ -76,6 +79,20 @@ class TaskApiMapper {
         return TaskStatus.fromValue(source.name());
     }
 
+    eu.poc.taskmanagement.model.TaskType toInternal(TaskType source) {
+        if (source == null) {
+            return null;
+        }
+        return eu.poc.taskmanagement.model.TaskType.valueOf(source.toString());
+    }
+
+    TaskType toGenerated(eu.poc.taskmanagement.model.TaskType source) {
+        if (source == null) {
+            return null;
+        }
+        return TaskType.fromValue(source.name());
+    }
+
     eu.poc.taskmanagement.generated.model.TaskView toGenerated(eu.poc.taskmanagement.projection.tasks.TaskView source) {
         return new eu.poc.taskmanagement.generated.model.TaskView()
                 .taskId(source.taskId)
@@ -84,6 +101,8 @@ class TaskApiMapper {
                 .assignedGroup(source.assignedGroup)
                 .assignedUser(source.assignedUser)
                 .status(toGenerated(source.status))
+                .taskType(toGenerated(source.taskType))
+                .expectedExternalUsers(source.getExpectedExternalUsers())
                 .deadline(toOffsetDateTime(source.deadline))
                 .createdAt(toOffsetDateTime(source.createdAt))
                 .updatedAt(toOffsetDateTime(source.updatedAt));

@@ -6,6 +6,7 @@ import eu.poc.taskmanagement.api.dto.CreateTaskRequest;
 import eu.poc.taskmanagement.api.dto.ReassignTaskRequest;
 import eu.poc.taskmanagement.api.dto.RejectTaskRequest;
 import eu.poc.taskmanagement.api.error.ApiError;
+import eu.poc.taskmanagement.model.TaskType;
 import eu.poc.taskmanagement.model.command.AssignTaskCommand;
 import eu.poc.taskmanagement.model.command.CancelTaskCommand;
 import eu.poc.taskmanagement.model.command.CompleteTaskCommand;
@@ -38,13 +39,28 @@ class TaskCommandDispatcher {
         validate(req);
         String group = (req.groupName() != null && !req.groupName().isBlank())
                 ? req.groupName() : defaultGroup;
+        TaskType taskType = req.taskType() != null ? req.taskType() : TaskType.STANDARD;
+        var expectedUsers = req.expectedExternalUsers() == null
+                ? java.util.List.<String>of()
+                : req.expectedExternalUsers().stream()
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .toList();
+
+        if (taskType == TaskType.USER_PROVISIONING && expectedUsers.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "expectedExternalUsers must contain at least one user for taskType USER_PROVISIONING");
+        }
 
         return dispatch(new CreateTaskCommand(
                 req.correlationId(),
                 req.title(),
                 req.description(),
                 group,
-                req.deadline()
+                req.deadline(),
+                taskType,
+                expectedUsers
         ));
     }
 

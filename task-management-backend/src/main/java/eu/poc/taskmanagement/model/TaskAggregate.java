@@ -42,6 +42,8 @@ public class TaskAggregate {
     private String taskId;
 
     private TaskStatus status;
+    private TaskType taskType;
+    private java.util.List<String> expectedExternalUsers;
     private String assignedGroup;
     private String assignedUser;
 
@@ -70,7 +72,9 @@ public class TaskAggregate {
                 cmd.description(),
                 cmd.groupName(),
                 null,
-                cmd.deadline()
+                cmd.deadline(),
+                cmd.taskType(),
+                cmd.expectedExternalUsers()
         ));
     }
 
@@ -169,6 +173,10 @@ public class TaskAggregate {
     public void on(TaskCreatedEvent event) {
         this.taskId = event.taskId();
         this.status = TaskStatus.CREATED;
+        this.taskType = event.taskType() != null ? event.taskType() : TaskType.STANDARD;
+        this.expectedExternalUsers = event.expectedExternalUsers() != null
+                ? java.util.List.copyOf(event.expectedExternalUsers())
+                : java.util.List.of();
         this.assignedGroup = event.assignedGroup();
         this.assignedUser = event.assignedUser();
     }

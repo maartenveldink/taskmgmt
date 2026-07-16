@@ -25,6 +25,15 @@ public class CompleteTaskCommandTestDataBuilder {
         CompleteTaskCommandBuilder builder = CompleteTaskCommand.builder()
                 .taskId("task-" + System.nanoTime());
 
-        return from(builder);
+        return new CompleteTaskCommandTestDataBuilder(builder);
+    }
+
+    public CompleteTaskCommandTestDataBuilder taskId(String taskId) {
+        delegatedBuilder.taskId(taskId);
+        return this;
+    }
+
+    public CompleteTaskCommand build() {
+        return delegatedBuilder.build();
     }
 }

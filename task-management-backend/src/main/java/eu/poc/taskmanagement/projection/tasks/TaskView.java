@@ -1,6 +1,10 @@
 package eu.poc.taskmanagement.projection.tasks;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.poc.taskmanagement.model.TaskStatus;
+import eu.poc.taskmanagement.model.TaskType;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import jakarta.persistence.*;
@@ -21,6 +25,7 @@ import java.util.List;
 @Entity
 @Table(name = "task_view")
 public class TaskView extends PanacheEntityBase {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Id
     @Column(name = "task_id", nullable = false)
@@ -43,6 +48,13 @@ public class TaskView extends PanacheEntityBase {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     public TaskStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "task_type", nullable = false)
+    public TaskType taskType;
+
+    @Column(name = "expected_external_users", length = 4000)
+    public String expectedExternalUsersJson;
 
     @Column(nullable = false)
     public Instant deadline;
@@ -83,9 +95,9 @@ public class TaskView extends PanacheEntityBase {
     // base forms the mandatory part (e.g., "assignedUser = ?1").
     // -------------------------------------------------------------------------
     private static List<TaskView> buildFilteredQuery(String base, Object arg1,
-                                                       TaskStatus status,
-                                                       Instant deadlineBefore, Instant deadlineAfter,
-                                                       int offset, int limit) {
+                                                        TaskStatus status,
+                                                        Instant deadlineBefore, Instant deadlineAfter,
+                                                        int offset, int limit) {
         var sb = new StringBuilder();
         var params = new java.util.ArrayList<>();
 
@@ -120,5 +132,28 @@ public class TaskView extends PanacheEntityBase {
         PanacheQuery<TaskView> panacheQuery = find(query, params.toArray());
         panacheQuery.range(offset, offset + limit - 1);
         return panacheQuery.list();
+    }
+
+    public void setExpectedExternalUsers(List<String> users) {
+        if (users == null || users.isEmpty()) {
+            this.expectedExternalUsersJson = "[]";
+            return;
+        }
+        try {
+            this.expectedExternalUsersJson = OBJECT_MAPPER.writeValueAsString(users);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize expectedExternalUsers", e);
+        }
+    }
+
+    public List<String> getExpectedExternalUsers() {
+        if (expectedExternalUsersJson == null || expectedExternalUsersJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            return OBJECT_MAPPER.readValue(expectedExternalUsersJson, new TypeReference<>() {});
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to deserialize expectedExternalUsers", e);
+        }
     }
 }

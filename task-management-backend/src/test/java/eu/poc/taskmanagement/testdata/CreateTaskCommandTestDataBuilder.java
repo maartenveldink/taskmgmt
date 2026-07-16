@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.Delegate;
 
 import java.time.Instant;
+import java.util.List;
 
 @RequiredArgsConstructor(staticName = "from")
 public class CreateTaskCommandTestDataBuilder {
@@ -25,10 +26,40 @@ public class CreateTaskCommandTestDataBuilder {
                 .title("Sample Task")
                 .description("This is a sample task for testing.")
                 .groupName("test-group")
-                .deadline(Instant.now().plusSeconds(3600));
+                .deadline(Instant.now().plusSeconds(3600))
+                .taskType(eu.poc.taskmanagement.model.TaskType.STANDARD)
+                .expectedExternalUsers(List.of());
 
-        return from(builder);
+        return new CreateTaskCommandTestDataBuilder(builder);
     }
 
+    public CreateTaskCommandTestDataBuilder taskId(String taskId) {
+        delegatedBuilder.taskId(taskId);
+        return this;
+    }
+
+    public CreateTaskCommandTestDataBuilder title(String title) {
+        delegatedBuilder.title(title);
+        return this;
+    }
+
+    public CreateTaskCommandTestDataBuilder description(String description) {
+        delegatedBuilder.description(description);
+        return this;
+    }
+
+    public CreateTaskCommandTestDataBuilder groupName(String groupName) {
+        delegatedBuilder.groupName(groupName);
+        return this;
+    }
+
+    public CreateTaskCommandTestDataBuilder deadline(Instant deadline) {
+        delegatedBuilder.deadline(deadline);
+        return this;
+    }
+
+    public CreateTaskCommand build() {
+        return delegatedBuilder.build();
+    }
 
 }

@@ -2,12 +2,14 @@ package eu.poc.taskmanagement.api;
 
 import eu.poc.taskmanagement.api.dto.*;
 import eu.poc.taskmanagement.model.command.AssigneeType;
+import eu.poc.taskmanagement.model.TaskType;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.*;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
@@ -48,7 +50,8 @@ class TaskResourceTest {
                 .contentType(ContentType.JSON)
                 .body(new CreateTaskRequest(TASK_ID, "Integration test task",
                         "End-to-end test", null,
-                        Instant.now().plus(30, ChronoUnit.DAYS)))
+                        Instant.now().plus(30, ChronoUnit.DAYS),
+                        TaskType.STANDARD, List.of()))
         .when()
                 .post("/tasks")
         .then()
@@ -62,7 +65,8 @@ class TaskResourceTest {
         given()
                 .contentType(ContentType.JSON)
                 .body(new CreateTaskRequest(TASK_ID, "Duplicate", "dup",
-                        null, Instant.now().plus(1, ChronoUnit.DAYS)))
+                        null, Instant.now().plus(1, ChronoUnit.DAYS),
+                        TaskType.STANDARD, List.of()))
         .when()
                 .post("/tasks")
         .then()
@@ -224,7 +228,8 @@ class TaskResourceTest {
                         "Should trigger deadline immediately",
                         "team-deadline-test",
                         // Deadline 1 second in the future so Quartz fires quickly.
-                        Instant.now().plus(1, ChronoUnit.SECONDS)))
+                        Instant.now().plus(1, ChronoUnit.SECONDS),
+                        TaskType.STANDARD, List.of()))
         .when()
                 .post("/tasks")
         .then()
@@ -253,7 +258,8 @@ class TaskResourceTest {
                         "   ",
                         "Missing title should fail validation",
                         "team-a",
-                        Instant.now().plus(1, ChronoUnit.DAYS)))
+                        Instant.now().plus(1, ChronoUnit.DAYS),
+                        TaskType.STANDARD, List.of()))
         .when()
                 .post("/tasks")
         .then()
@@ -286,7 +292,8 @@ class TaskResourceTest {
                         "Task with past deadline",
                         "Should fail @Future validation",
                         "team-a",
-                        Instant.now().minus(1, ChronoUnit.DAYS)))
+                        Instant.now().minus(1, ChronoUnit.DAYS),
+                        TaskType.STANDARD, List.of()))
         .when()
                 .post("/tasks")
         .then()
@@ -306,7 +313,8 @@ class TaskResourceTest {
                         "x".repeat(201),
                         "Title exceeds max length",
                         "team-a",
-                        Instant.now().plus(1, ChronoUnit.DAYS)))
+                        Instant.now().plus(1, ChronoUnit.DAYS),
+                        TaskType.STANDARD, List.of()))
         .when()
                 .post("/tasks")
         .then()

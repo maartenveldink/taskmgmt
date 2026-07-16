@@ -465,6 +465,10 @@ components:
       type: string
       enum: [CREATED, ASSIGNED, IN_PROGRESS, DONE, CANCELLED, REJECTED]
 
+    TaskType:
+      type: string
+      enum: [STANDARD, USER_PROVISIONING]
+
     CreateTaskRequest:
       type: object
       required: [correlationId, title, deadline]
@@ -486,6 +490,15 @@ components:
         deadline:
           type: string
           format: date-time
+        taskType:
+          $ref: '#/components/schemas/TaskType'
+        expectedExternalUsers:
+          type: array
+          maxItems: 200
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
 
     AssignTaskRequest:
       type: object
@@ -538,6 +551,12 @@ components:
           type: string
         status:
           $ref: '#/components/schemas/TaskStatus'
+        taskType:
+          $ref: '#/components/schemas/TaskType'
+        expectedExternalUsers:
+          type: array
+          items:
+            type: string
         deadline:
           type: string
           format: date-time
