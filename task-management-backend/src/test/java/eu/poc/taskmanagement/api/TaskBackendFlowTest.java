@@ -8,13 +8,11 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static eu.poc.taskmanagement.api.CreateTaskCommandTestDataBuilder.aCreateTaskCommand;
-import static eu.poc.taskmanagement.api.AssignTaskCommandTestDataBuilder.anAssignTaskCommand;
-import static eu.poc.taskmanagement.api.StartTaskCommandTestDataBuilder.aStartTaskCommand;
 
 /**
  * End-to-end integration test in one Quarkus setup:
@@ -33,26 +31,27 @@ class TaskBackendFlowTest {
     void commandSagaAndQueryStoresWorkInSingleSetup() throws Exception {
         String taskId = "flow-" + System.nanoTime();
 
-        // Build and dispatch commands using fluent builders
-        commandDispatchHarness.dispatch(
-                aCreateTaskCommand()
-                        .withTaskId(taskId)
-                        .withTitle("Flow task")
-                        .withDescription("Unified setup test")
-                        .withGroupName("ops-team")
-                        .withDeadlineInSeconds(1)
-                        .build());
+        // Build and dispatch commands using test data builders
+        var createCommand = CreateTaskCommandTestDataBuilder.valid()
+                .taskId(taskId)
+                .title("Flow task")
+                .description("Unified setup test")
+                .groupName("ops-team")
+                .deadline(Instant.now().plusSeconds(1))
+                .build();
 
-        commandDispatchHarness.dispatch(
-                anAssignTaskCommand()
-                        .withTaskId(taskId)
-                        .assignToUser("alice")
-                        .build());
+        var assignCommand = AssignTaskCommandTestDataBuilder.valid()
+                .taskId(taskId)
+                .assigneeName("alice")
+                .build();
 
-        commandDispatchHarness.dispatch(
-                aStartTaskCommand()
-                        .withTaskId(taskId)
-                        .build());
+        var startCommand = StartTaskCommandTestDataBuilder.valid()
+                .taskId(taskId)
+                .build();
+
+        commandDispatchHarness.dispatch(createCommand);
+        commandDispatchHarness.dispatch(assignCommand);
+        commandDispatchHarness.dispatch(startCommand);
 
         // Verify task is in-progress via read model
         List<TaskView> inProgressTasks = queryStore.findTasksByStatus(TaskStatus.IN_PROGRESS);

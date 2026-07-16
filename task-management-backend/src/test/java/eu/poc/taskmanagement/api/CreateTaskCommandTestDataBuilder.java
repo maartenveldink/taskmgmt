@@ -1,58 +1,34 @@
 package eu.poc.taskmanagement.api;
 
 import eu.poc.taskmanagement.model.command.CreateTaskCommand;
+import eu.poc.taskmanagement.model.command.CreateTaskCommand.CreateTaskCommandBuilder;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.Delegate;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.UUID;
 
-/**
- * Test data builder for CreateTaskCommand.
- * Provides sensible defaults and fluent configuration.
- */
+@RequiredArgsConstructor(staticName = "from")
 public class CreateTaskCommandTestDataBuilder {
 
-    private String taskId = "task-" + UUID.randomUUID();
-    private String title = "Test Task";
-    private String description = "Default test task";
-    private String groupName = "ops-team";
-    private Instant deadline = Instant.now().plus(30, ChronoUnit.DAYS);
+    @Delegate
+    private final CreateTaskCommandBuilder delegatedBuilder;
 
-    public static CreateTaskCommandTestDataBuilder aCreateTaskCommand() {
-        return new CreateTaskCommandTestDataBuilder();
+    /**
+     * Create a functionally valid Entity, consistent with other testdatabuilders.
+     * This method defines the values for a valid object, that can be successfully handled by the application.
+     *
+     * @return CreateTaskCommandTestDataBuilder
+     */
+    public static CreateTaskCommandTestDataBuilder valid(){
+        CreateTaskCommandBuilder builder = CreateTaskCommand.builder()
+                .taskId("task-" + System.nanoTime())
+                .title("Sample Task")
+                .description("This is a sample task for testing.")
+                .groupName("test-group")
+                .deadline(Instant.now().plusSeconds(3600));
+
+        return from(builder);
     }
 
-    public CreateTaskCommandTestDataBuilder withTaskId(String taskId) {
-        this.taskId = taskId;
-        return this;
-    }
 
-    public CreateTaskCommandTestDataBuilder withTitle(String title) {
-        this.title = title;
-        return this;
-    }
-
-    public CreateTaskCommandTestDataBuilder withDescription(String description) {
-        this.description = description;
-        return this;
-    }
-
-    public CreateTaskCommandTestDataBuilder withGroupName(String groupName) {
-        this.groupName = groupName;
-        return this;
-    }
-
-    public CreateTaskCommandTestDataBuilder withDeadline(Instant deadline) {
-        this.deadline = deadline;
-        return this;
-    }
-
-    public CreateTaskCommandTestDataBuilder withDeadlineInSeconds(long seconds) {
-        this.deadline = Instant.now().plus(seconds, ChronoUnit.SECONDS);
-        return this;
-    }
-
-    public CreateTaskCommand build() {
-        return new CreateTaskCommand(taskId, title, description, groupName, deadline);
-    }
 }

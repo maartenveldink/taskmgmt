@@ -1,28 +1,30 @@
 package eu.poc.taskmanagement.api;
 
 import eu.poc.taskmanagement.model.command.CompleteTaskCommand;
+import eu.poc.taskmanagement.model.command.CompleteTaskCommand.CompleteTaskCommandBuilder;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.Delegate;
 
 /**
  * Test data builder for CompleteTaskCommand.
- * Provides sensible defaults and fluent configuration.
+ * Delegates to Lombok's generated builder, adding factory methods
+ * for common test scenarios.
  */
+@RequiredArgsConstructor(staticName = "from")
 public class CompleteTaskCommandTestDataBuilder {
 
-    private String taskId;
+    @Delegate
+    private final CompleteTaskCommandBuilder delegatedBuilder;
 
-    public static CompleteTaskCommandTestDataBuilder aCompleteTaskCommand() {
-        return new CompleteTaskCommandTestDataBuilder();
-    }
+    /**
+     * Create a functionally valid command with sensible test defaults.
+     *
+     * @return CompleteTaskCommandTestDataBuilder
+     */
+    public static CompleteTaskCommandTestDataBuilder valid() {
+        CompleteTaskCommandBuilder builder = CompleteTaskCommand.builder()
+                .taskId("task-" + System.nanoTime());
 
-    public CompleteTaskCommandTestDataBuilder withTaskId(String taskId) {
-        this.taskId = taskId;
-        return this;
-    }
-
-    public CompleteTaskCommand build() {
-        if (taskId == null) {
-            throw new IllegalStateException("taskId is required");
-        }
-        return new CompleteTaskCommand(taskId);
+        return from(builder);
     }
 }
