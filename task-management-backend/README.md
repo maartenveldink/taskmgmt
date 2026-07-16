@@ -2,6 +2,14 @@
 
 CQRS/Event Sourcing backend on Quarkus + Axon.
 
+## Package structure
+
+- `api.http`: HTTP resource implementation (`TasksHttpResource`)
+- `api.mapping`: HTTP <-> internal mapping (`TasksHttpMapper`)
+- `application.command`: command orchestration (`TaskCommandApplicationService`)
+- `application.query`: query orchestration (`TaskQueryApplicationService`)
+- `model` / `saga` / `projection` / `integration`: domain and infrastructure concerns
+
 ## New task type support
 
 Tasks now support typed completion behavior:
@@ -16,7 +24,7 @@ Tasks now support typed completion behavior:
 - `taskType` (`STANDARD` or `USER_PROVISIONING`)
 - `expectedExternalUsers` (required for `USER_PROVISIONING`, optional/empty for `STANDARD`)
 
-The HTTP boundary uses generated OpenAPI interfaces/models. Mapping to internal commands happens in `TaskApiMapper`, then dispatching happens in `TaskCommandDispatcher`.
+The HTTP boundary uses generated OpenAPI interfaces/models. Mapping to internal commands happens in `TasksHttpMapper`, and command/query orchestration happens in `TaskCommandApplicationService` and `TaskQueryApplicationService`.
 
 ## External user directory integration
 

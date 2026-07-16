@@ -1,4 +1,4 @@
-package eu.poc.taskmanagement.api;
+package eu.poc.taskmanagement.application.query;
 
 import eu.poc.taskmanagement.model.TaskStatus;
 import eu.poc.taskmanagement.projection.audittrail.AuditTrailEntry;
@@ -17,12 +17,12 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 @ApplicationScoped
-class TaskQueryService {
+public class TaskQueryApplicationService {
 
     @Inject
     QueryGateway queryGateway;
 
-    List<TaskView> getAllTasks(TaskStatus status,
+    public List<TaskView> getAllTasks(TaskStatus status,
                                Instant deadlineBefore,
                                Instant deadlineAfter,
                                int offset,
@@ -30,7 +30,7 @@ class TaskQueryService {
         return query(new GetAllTasksQuery(status, deadlineBefore, deadlineAfter, offset, limit));
     }
 
-    List<TaskView> getTasksByUser(String userName,
+    public List<TaskView> getTasksByUser(String userName,
                                   TaskStatus status,
                                   Instant deadlineBefore,
                                   Instant deadlineAfter,
@@ -40,17 +40,17 @@ class TaskQueryService {
                 userName, status, deadlineBefore, deadlineAfter, offset, limit));
     }
 
-    List<TaskView> getTasksByGroup(String groupName,
-                                   TaskStatus status,
-                                   Instant deadlineBefore,
-                                   Instant deadlineAfter,
-                                   int offset,
-                                   int limit) {
+    public List<TaskView> getTasksByGroup(String groupName,
+                                    TaskStatus status,
+                                    Instant deadlineBefore,
+                                    Instant deadlineAfter,
+                                    int offset,
+                                    int limit) {
         return query(new GetTasksByGroupQuery(
                 groupName, status, deadlineBefore, deadlineAfter, offset, limit));
     }
 
-    List<AuditTrailEntry> getAuditTrail(String taskId) {
+    public List<AuditTrailEntry> getAuditTrail(String taskId) {
         return query(new GetAuditTrailByTaskQuery(taskId));
     }
 

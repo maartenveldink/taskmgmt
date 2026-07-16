@@ -1,4 +1,4 @@
-package eu.poc.taskmanagement.api;
+package eu.poc.taskmanagement.api.mapping;
 
 import eu.poc.taskmanagement.generated.model.AssigneeType;
 import eu.poc.taskmanagement.generated.model.AssignTaskRequest;
@@ -17,12 +17,12 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-class TaskApiMapperTest {
+class TasksHttpMapperTest {
 
-    private final TaskApiMapper mapper = new TaskApiMapper();
+    private final TasksHttpMapper mapper = new TasksHttpMapper();
 
     @Test
-    void mapsGeneratedCreateRequestToInternalDto() {
+    void mapsGeneratedCreateRequestToCreateCommand() {
         OffsetDateTime deadline = OffsetDateTime.now(ZoneOffset.UTC).plusDays(1);
         CreateTaskRequest request = new CreateTaskRequest()
                 .correlationId("corr-1")
@@ -33,9 +33,9 @@ class TaskApiMapperTest {
                 .expectedExternalUsers(List.of("alice", "bob"))
                 .deadline(deadline);
 
-        var mapped = mapper.toInternal(request);
+        var mapped = mapper.toCreateTaskCommand(request, "fallback-group");
 
-        assertEquals("corr-1", mapped.correlationId());
+        assertEquals("corr-1", mapped.taskId());
         assertEquals("title", mapped.title());
         assertEquals("desc", mapped.description());
         assertEquals("group-a", mapped.groupName());
@@ -45,13 +45,14 @@ class TaskApiMapperTest {
     }
 
     @Test
-    void mapsGeneratedAssignRequestToInternalDto() {
+    void mapsGeneratedAssignRequestToAssignCommand() {
         AssignTaskRequest request = new AssignTaskRequest()
                 .assigneeName("alice")
                 .assigneeType(AssigneeType.USER);
 
-        var mapped = mapper.toInternal(request);
+        var mapped = mapper.toAssignTaskCommand("task-1", request);
 
+        assertEquals("task-1", mapped.taskId());
         assertEquals("alice", mapped.assigneeName());
         assertEquals(eu.poc.taskmanagement.model.command.AssigneeType.USER, mapped.assigneeType());
     }
