@@ -1,11 +1,13 @@
 package eu.poc.taskmanagement.api.dto;
 
+import eu.poc.taskmanagement.model.TaskType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * HTTP request body for {@code POST /tasks}.
@@ -23,5 +25,7 @@ public record CreateTaskRequest(
         @NotBlank @Size(max = 200) String title,
         @Size(max = 4000) String description,
         @Size(max = 100) String groupName,
-        @NotNull @Future Instant deadline
+        @NotNull @Future Instant deadline,
+        TaskType taskType,
+        @Size(max = 200) List<@NotBlank @Size(max = 100) String> expectedExternalUsers
 ) {}

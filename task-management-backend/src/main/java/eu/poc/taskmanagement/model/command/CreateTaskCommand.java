@@ -1,9 +1,11 @@
 package eu.poc.taskmanagement.model.command;
 
 import lombok.Builder;
+import eu.poc.taskmanagement.model.TaskType;
 import org.axonframework.modelling.command.TargetAggregateIdentifier;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Issued by an external system to create a new task.
@@ -26,5 +28,7 @@ public record CreateTaskCommand(
         String title,
         String description,
         String groupName,
-        Instant deadline
+        Instant deadline,
+        TaskType taskType,
+        List<String> expectedExternalUsers
 ) {}

@@ -29,6 +29,20 @@ public class AssignTaskCommandTestDataBuilder {
                 .assigneeName("alice")
                 .assigneeType(AssigneeType.USER);
 
-        return from(builder);
+        return new AssignTaskCommandTestDataBuilder(builder);
+    }
+
+    public AssignTaskCommandTestDataBuilder taskId(String taskId) {
+        delegatedBuilder.taskId(taskId);
+        return this;
+    }
+
+    public AssignTaskCommandTestDataBuilder assigneeName(String assigneeName) {
+        delegatedBuilder.assigneeName(assigneeName);
+        return this;
+    }
+
+    public AssignTaskCommand build() {
+        return delegatedBuilder.build();
     }
 }

@@ -1,8 +1,10 @@
 package eu.poc.taskmanagement.config;
 
+import eu.poc.taskmanagement.integration.userdirectory.ExternalUserDirectoryClient;
 import jakarta.inject.Inject;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.axonframework.config.Configuration;
 import org.axonframework.deadline.DeadlineManager;
 import org.axonframework.eventhandling.EventBus;
@@ -39,6 +41,7 @@ import java.lang.reflect.Field;
 public class AxonResourceInjector implements ResourceInjector {
 
     private final Configuration configuration;
+    private final ExternalUserDirectoryClient externalUserDirectoryClient;
 
     @Override
     public void injectResources(Object saga) {
@@ -82,6 +85,12 @@ public class AxonResourceInjector implements ResourceInjector {
         }
         if (EventBus.class.isAssignableFrom(fieldType)) {
             return configuration.eventBus();
+        }
+        if (CommandGateway.class.isAssignableFrom(fieldType)) {
+            return configuration.commandGateway();
+        }
+        if (ExternalUserDirectoryClient.class.isAssignableFrom(fieldType)) {
+            return externalUserDirectoryClient;
         }
         log.warn("AxonResourceInjector: unknown injectable type {} — returning null", fieldType.getSimpleName());
         return null;

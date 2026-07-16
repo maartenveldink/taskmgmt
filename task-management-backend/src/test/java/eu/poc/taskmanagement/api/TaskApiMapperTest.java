@@ -4,6 +4,7 @@ import eu.poc.taskmanagement.generated.model.AssigneeType;
 import eu.poc.taskmanagement.generated.model.AssignTaskRequest;
 import eu.poc.taskmanagement.generated.model.CreateTaskRequest;
 import eu.poc.taskmanagement.generated.model.TaskStatus;
+import eu.poc.taskmanagement.generated.model.TaskType;
 import eu.poc.taskmanagement.projection.audittrail.AuditTrailEntry;
 import eu.poc.taskmanagement.projection.tasks.TaskView;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -27,6 +29,8 @@ class TaskApiMapperTest {
                 .title("title")
                 .description("desc")
                 .groupName("group-a")
+                .taskType(TaskType.USER_PROVISIONING)
+                .expectedExternalUsers(List.of("alice", "bob"))
                 .deadline(deadline);
 
         var mapped = mapper.toInternal(request);
@@ -36,6 +40,8 @@ class TaskApiMapperTest {
         assertEquals("desc", mapped.description());
         assertEquals("group-a", mapped.groupName());
         assertEquals(deadline.toInstant(), mapped.deadline());
+        assertEquals(eu.poc.taskmanagement.model.TaskType.USER_PROVISIONING, mapped.taskType());
+        assertEquals(List.of("alice", "bob"), mapped.expectedExternalUsers());
     }
 
     @Test
@@ -59,6 +65,8 @@ class TaskApiMapperTest {
         source.assignedGroup = "group-a";
         source.assignedUser = "alice";
         source.status = eu.poc.taskmanagement.model.TaskStatus.IN_PROGRESS;
+        source.taskType = eu.poc.taskmanagement.model.TaskType.USER_PROVISIONING;
+        source.setExpectedExternalUsers(List.of("alice", "bob"));
         source.deadline = Instant.now().plusSeconds(3600);
         source.createdAt = Instant.now().minusSeconds(60);
         source.updatedAt = Instant.now();
@@ -67,6 +75,8 @@ class TaskApiMapperTest {
 
         assertEquals("task-1", mapped.getTaskId());
         assertEquals(TaskStatus.IN_PROGRESS, mapped.getStatus());
+        assertEquals(TaskType.USER_PROVISIONING, mapped.getTaskType());
+        assertEquals(List.of("alice", "bob"), mapped.getExpectedExternalUsers());
         assertNotNull(mapped.getDeadline());
         assertNotNull(mapped.getCreatedAt());
         assertNotNull(mapped.getUpdatedAt());

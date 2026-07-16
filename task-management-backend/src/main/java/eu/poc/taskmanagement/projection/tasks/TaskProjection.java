@@ -66,6 +66,8 @@ public class TaskProjection {
         view.assignedGroup = event.assignedGroup();
         view.assignedUser = event.assignedUser();
         view.status = TaskStatus.CREATED;
+        view.taskType = event.taskType() != null ? event.taskType() : eu.poc.taskmanagement.model.TaskType.STANDARD;
+        view.setExpectedExternalUsers(event.expectedExternalUsers());
         view.deadline = event.deadline();
         view.updatedAt = timestamp;
         view.persistAndFlush();

@@ -3,7 +3,9 @@ package eu.poc.taskmanagement.config;
 import eu.poc.taskmanagement.model.TaskAggregate;
 import eu.poc.taskmanagement.projection.audittrail.AuditTrailProjection;
 import eu.poc.taskmanagement.projection.tasks.TaskProjection;
+import eu.poc.taskmanagement.integration.userdirectory.ExternalUserDirectoryClient;
 import eu.poc.taskmanagement.saga.TaskDeadlineSaga;
+import eu.poc.taskmanagement.saga.UserProvisioningCompletionSaga;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -138,6 +140,9 @@ public class AxonConfig {
     @Inject
     AuditTrailProjection auditTrailProjection;
 
+    @Inject
+    ExternalUserDirectoryClient externalUserDirectoryClient;
+
     // -------------------------------------------------------------------------
     // Internal state
     // -------------------------------------------------------------------------
@@ -218,7 +223,7 @@ public class AxonConfig {
                 // always expose Axon interface types (DeadlineManager, EventBus) as
                 // resolvable CDI beans before the configuration is fully started.
                 // Using the Axon Configuration directly is more reliable.
-                .configureResourceInjector(c -> new AxonResourceInjector(c))
+                .configureResourceInjector(c -> new AxonResourceInjector(c, externalUserDirectoryClient))
 
                 // Register the QuartzDeadlineManager via the dedicated API.
                 // configureDeadlineManager receives the fully-built Configuration (c),
@@ -252,6 +257,7 @@ public class AxonConfig {
 
                         // Deadline Saga.
                         .registerSaga(TaskDeadlineSaga.class)
+                        .registerSaga(UserProvisioningCompletionSaga.class)
                 );
 
         axonConfiguration = configurer.buildConfiguration();

@@ -25,6 +25,15 @@ public class StartTaskCommandTestDataBuilder {
         StartTaskCommandBuilder builder = StartTaskCommand.builder()
                 .taskId("task-" + System.nanoTime());
 
-        return from(builder);
+        return new StartTaskCommandTestDataBuilder(builder);
+    }
+
+    public StartTaskCommandTestDataBuilder taskId(String taskId) {
+        delegatedBuilder.taskId(taskId);
+        return this;
+    }
+
+    public StartTaskCommand build() {
+        return delegatedBuilder.build();
     }
 }

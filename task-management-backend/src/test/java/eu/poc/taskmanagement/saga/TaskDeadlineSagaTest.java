@@ -1,6 +1,7 @@
 package eu.poc.taskmanagement.saga;
 
 import eu.poc.taskmanagement.model.TaskStatus;
+import eu.poc.taskmanagement.model.TaskType;
 import eu.poc.taskmanagement.model.event.*;
 import org.axonframework.test.saga.FixtureConfiguration;
 import org.axonframework.test.saga.SagaTestFixture;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Unit tests for {@link TaskDeadlineSaga} using Axon's {@link SagaTestFixture}.
@@ -55,7 +57,7 @@ class TaskDeadlineSagaTest {
 
     private TaskCreatedEvent createdEvent() {
         return new TaskCreatedEvent(TASK_ID, "Test Task", "desc",
-                "unassigned", null, deadlineFromNow());
+                "unassigned", null, deadlineFromNow(), TaskType.STANDARD, List.of());
     }
 
     // =========================================================================
@@ -67,7 +69,7 @@ class TaskDeadlineSagaTest {
     void sagaStartsOnCreation() {
         Instant deadline = deadlineFromNow();
         TaskCreatedEvent created = new TaskCreatedEvent(TASK_ID, "Test", "desc",
-                "unassigned", null, deadline);
+                "unassigned", null, deadline, TaskType.STANDARD, List.of());
 
         fixture.givenNoPriorActivity()
                 .whenPublishingA(created)
@@ -118,7 +120,7 @@ class TaskDeadlineSagaTest {
     void escalatesWhenDeadlineExceeded() {
         Instant deadline = deadlineFromNow();
         TaskCreatedEvent created = new TaskCreatedEvent(TASK_ID, "Test", "desc",
-                "unassigned", null, deadline);
+                "unassigned", null, deadline, TaskType.STANDARD, List.of());
 
         fixture.givenAPublished(created)
                 // Advance virtual time 2 hours past the 1-hour deadline.
@@ -134,7 +136,7 @@ class TaskDeadlineSagaTest {
     void includesLatestStatusInDeadlineEvent() {
         Instant deadline = deadlineFromNow();
         TaskCreatedEvent created = new TaskCreatedEvent(TASK_ID, "Test", "desc",
-                "unassigned", null, deadline);
+                "unassigned", null, deadline, TaskType.STANDARD, List.of());
 
         fixture.givenAPublished(created)
                 .andThenAPublished(new TaskAssignedEvent(TASK_ID, "team-alpha", null, "unassigned", null))

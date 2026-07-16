@@ -1,6 +1,9 @@
 package eu.poc.taskmanagement.model.event;
 
+import eu.poc.taskmanagement.model.TaskType;
+
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Published when a new task aggregate is successfully created.
@@ -21,5 +24,7 @@ public record TaskCreatedEvent(
         String description,
         String assignedGroup,
         String assignedUser,
-        Instant deadline
+        Instant deadline,
+        TaskType taskType,
+        List<String> expectedExternalUsers
 ) {}
