@@ -37,6 +37,7 @@ import org.quartz.Scheduler;
 import org.quartz.SchedulerFactory;
 import org.quartz.impl.StdSchedulerFactory;
 import lombok.extern.slf4j.Slf4j;
+import java.util.Properties;
 
 /**
  * Axon Framework CDI configuration for Quarkus.
@@ -216,7 +217,7 @@ public class AxonConfig {
                 .configureSerializer(c -> serializer)
                 .configureEmbeddedEventStore(c -> storageEngine)
                 .configureAggregate(TaskAggregate.class)
-                // AxonResourceInjector: injects @jakarta.inject.Inject fields on
+                // AxonResourceInjector: injects @Inject fields on
                 // Saga instances directly from the Axon Configuration.
                 // Previously used CdiResourceInjector (CDI BeanManager lookup), but that
                 // failed at runtime because Quarkus's build-time CDI processing does not
@@ -375,7 +376,7 @@ public class AxonConfig {
      */
     private Scheduler buildQuartzScheduler() {
         try {
-            var props = new java.util.Properties();
+            var props = new Properties();
             props.setProperty("org.quartz.scheduler.instanceName", "AxonDeadlineScheduler");
             props.setProperty("org.quartz.scheduler.skipUpdateCheck", "true");
             props.setProperty("org.quartz.threadPool.class",

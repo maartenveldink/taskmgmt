@@ -11,11 +11,13 @@ import eu.poc.taskmanagement.model.event.TaskCompletedEvent;
 import eu.poc.taskmanagement.model.event.TaskCreatedEvent;
 import eu.poc.taskmanagement.model.event.TaskRejectedEvent;
 import eu.poc.taskmanagement.model.event.TaskStartedEvent;
+import jakarta.inject.Inject;
 import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.axonframework.deadline.DeadlineManager;
 import org.axonframework.deadline.annotation.DeadlineHandler;
 import org.axonframework.modelling.saga.EndSaga;
 import org.axonframework.modelling.saga.SagaEventHandler;
+import org.axonframework.modelling.saga.SagaLifecycle;
 import org.axonframework.modelling.saga.StartSaga;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,13 +33,13 @@ public class UserProvisioningCompletionSaga {
     static final String POLL_DEADLINE = "user-provisioning-poll";
     private static final long POLL_INTERVAL_SECONDS = 5L;
 
-    @jakarta.inject.Inject
+    @Inject
     transient DeadlineManager deadlineManager;
 
-    @jakarta.inject.Inject
+    @Inject
     transient ExternalUserDirectoryClient externalUserDirectoryClient;
 
-    @jakarta.inject.Inject
+    @Inject
     transient CommandGateway commandGateway;
 
     private String taskId;
@@ -50,13 +52,13 @@ public class UserProvisioningCompletionSaga {
     @SagaEventHandler(associationProperty = "taskId")
     public void on(TaskCreatedEvent event) {
         if (event.taskType() != TaskType.USER_PROVISIONING) {
-            org.axonframework.modelling.saga.SagaLifecycle.end();
+            SagaLifecycle.end();
             return;
         }
 
         if (event.expectedExternalUsers() == null || event.expectedExternalUsers().isEmpty()) {
             LOG.warn("Not starting user provisioning saga for taskId={} because expectedExternalUsers is empty", event.taskId());
-            org.axonframework.modelling.saga.SagaLifecycle.end();
+            SagaLifecycle.end();
             return;
         }
 
@@ -101,13 +103,13 @@ public class UserProvisioningCompletionSaga {
     @DeadlineHandler(deadlineName = POLL_DEADLINE)
     public void onPollDeadline(UserProvisioningPollPayload payload) {
         if (lastKnownStatus == null || lastKnownStatus.isTerminal()) {
-            org.axonframework.modelling.saga.SagaLifecycle.end();
+            SagaLifecycle.end();
             return;
         }
 
         if (Instant.now().isAfter(deadline)) {
             LOG.warn("User provisioning completion saga timed out for taskId={}, expectedUsers={}", taskId, expectedUsers);
-            org.axonframework.modelling.saga.SagaLifecycle.end();
+            SagaLifecycle.end();
             return;
         }
 
@@ -119,7 +121,7 @@ public class UserProvisioningCompletionSaga {
         Set<String> createdUsers = externalUserDirectoryClient.fetchCreatedUsers(taskId);
         if (createdUsers.containsAll(expectedUsers)) {
             commandGateway.sendAndWait(new CompleteTaskCommand(taskId));
-            org.axonframework.modelling.saga.SagaLifecycle.end();
+            SagaLifecycle.end();
             return;
         }
 

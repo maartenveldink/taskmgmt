@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.axonframework.modelling.saga.ResourceInjector;
 
 import java.lang.reflect.Field;
+import java.util.Set;
 
 /**
  * Axon {@link ResourceInjector} backed by Quarkus CDI.
@@ -86,7 +87,7 @@ public class CdiResourceInjector implements ResourceInjector {
         if (beans.isEmpty()) {
             return null;
         }
-        var bean = beanManager.resolve((java.util.Set) beans);
+        var bean = beanManager.resolve((Set) beans);
         var ctx = beanManager.createCreationalContext(bean);
         return beanManager.getReference(bean, beanType, ctx);
     }
