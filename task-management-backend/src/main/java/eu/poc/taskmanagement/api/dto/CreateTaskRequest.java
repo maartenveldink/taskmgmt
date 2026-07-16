@@ -2,6 +2,8 @@ package eu.poc.taskmanagement.api.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
 
@@ -17,9 +19,9 @@ import java.time.Instant;
  * (currently {@code "unassigned"}).
  */
 public record CreateTaskRequest(
-        @NotBlank String correlationId,
-        @NotBlank String title,
-        String description,
-        String groupName,
-        @NotNull Instant deadline
+        @NotBlank @Size(max = 100) String correlationId,
+        @NotBlank @Size(max = 200) String title,
+        @Size(max = 4000) String description,
+        @Size(max = 100) String groupName,
+        @NotNull @Future Instant deadline
 ) {}
