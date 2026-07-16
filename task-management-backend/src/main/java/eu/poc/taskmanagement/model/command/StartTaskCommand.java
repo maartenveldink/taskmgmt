@@ -1,5 +1,6 @@
 package eu.poc.taskmanagement.model.command;
 
+import lombok.Builder;
 import org.axonframework.modelling.command.TargetAggregateIdentifier;
 
 /**
@@ -8,6 +9,7 @@ import org.axonframework.modelling.command.TargetAggregateIdentifier;
  * <p>Works regardless of whether the current assignee is a user or a group
  * (requirement CH-05).  The task must be in ASSIGNED status.
  */
+@Builder
 public record StartTaskCommand(
         @TargetAggregateIdentifier String taskId
 ) {}

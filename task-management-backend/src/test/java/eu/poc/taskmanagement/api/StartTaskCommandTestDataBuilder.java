@@ -1,28 +1,30 @@
 package eu.poc.taskmanagement.api;
 
 import eu.poc.taskmanagement.model.command.StartTaskCommand;
+import eu.poc.taskmanagement.model.command.StartTaskCommand.StartTaskCommandBuilder;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.Delegate;
 
 /**
  * Test data builder for StartTaskCommand.
- * Provides sensible defaults and fluent configuration.
+ * Delegates to Lombok's generated builder, adding factory methods
+ * for common test scenarios.
  */
+@RequiredArgsConstructor(staticName = "from")
 public class StartTaskCommandTestDataBuilder {
 
-    private String taskId;
+    @Delegate
+    private final StartTaskCommandBuilder delegatedBuilder;
 
-    public static StartTaskCommandTestDataBuilder aStartTaskCommand() {
-        return new StartTaskCommandTestDataBuilder();
-    }
+    /**
+     * Create a functionally valid command with sensible test defaults.
+     *
+     * @return StartTaskCommandTestDataBuilder
+     */
+    public static StartTaskCommandTestDataBuilder valid() {
+        StartTaskCommandBuilder builder = StartTaskCommand.builder()
+                .taskId("task-" + System.nanoTime());
 
-    public StartTaskCommandTestDataBuilder withTaskId(String taskId) {
-        this.taskId = taskId;
-        return this;
-    }
-
-    public StartTaskCommand build() {
-        if (taskId == null) {
-            throw new IllegalStateException("taskId is required");
-        }
-        return new StartTaskCommand(taskId);
+        return from(builder);
     }
 }

@@ -1,5 +1,6 @@
 package eu.poc.taskmanagement.model.command;
 
+import lombok.Builder;
 import org.axonframework.modelling.command.TargetAggregateIdentifier;
 
 /**
@@ -8,6 +9,7 @@ import org.axonframework.modelling.command.TargetAggregateIdentifier;
  * <p>Completing a task also terminates the deadline Saga, preventing a
  * spurious escalation log entry.
  */
+@Builder
 public record CompleteTaskCommand(
         @TargetAggregateIdentifier String taskId
 ) {}

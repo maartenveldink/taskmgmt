@@ -1,5 +1,6 @@
 package eu.poc.taskmanagement.model.command;
 
+import lombok.Builder;
 import org.axonframework.modelling.command.TargetAggregateIdentifier;
 
 import java.time.Instant;
@@ -19,6 +20,7 @@ import java.time.Instant;
  * <p><strong>deadline</strong> — mandatory; the Saga uses this to schedule the
  * Quartz-backed deadline trigger (see {@code TaskDeadlineSaga}).
  */
+@Builder(toBuilder = true)
 public record CreateTaskCommand(
         @TargetAggregateIdentifier String taskId,
         String title,
