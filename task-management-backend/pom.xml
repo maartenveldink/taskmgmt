@@ -70,6 +70,20 @@
         </dependency>
 
         <!--
+            MSSQL JDBC driver — uncomment when switching to SQL Server.
+            Also update application.properties:
+              - quarkus.datasource.db-kind=mssql
+              - quarkus.datasource.jdbc.url=jdbc:sqlserver://...
+              - axon.event-store.sql-error-codes.database-product-name=Microsoft SQL Server
+        -->
+        <!--
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jdbc-mssql</artifactId>
+        </dependency>
+        -->
+
+        <!--
             Quartz scheduler — used by Axon's QuartzDeadlineManager to schedule
             saga deadline triggers.  Quarkus exposes the underlying
             org.quartz.Scheduler as a CDI bean so Axon can consume it directly.
