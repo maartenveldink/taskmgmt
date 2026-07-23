@@ -16,6 +16,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Status;
 import jakarta.transaction.UserTransaction;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.axonframework.common.jpa.EntityManagerProvider;
 import org.axonframework.common.transaction.Transaction;
@@ -144,6 +145,20 @@ public class AxonConfig {
     @Inject
     ExternalUserDirectoryClient externalUserDirectoryClient;
 
+    /**
+     * Database product name used by Axon's {@link SQLErrorCodesResolver} to load
+     * the correct SQL error codes for duplicate-key detection.
+     *
+     * <p>Supported values (must match Axon's SQLErrorCode.properties):
+     * <ul>
+     *   <li>{@code H2} — H2 in-memory database</li>
+     *   <li>{@code Microsoft SQL Server} — MSSQL</li>
+     *   <li>{@code PostgreSQL}, {@code MySQL}, {@code Oracle}, etc.</li>
+     * </ul>
+     */
+    @ConfigProperty(name = "axon.event-store.sql-error-codes.database-product-name", defaultValue = "H2")
+    String databaseProductName;
+
     // -------------------------------------------------------------------------
     // Internal state
     // -------------------------------------------------------------------------
@@ -177,8 +192,10 @@ public class AxonConfig {
         // Axon's DomainEventEntry and SnapshotEventEntry tables are managed by
         // Hibernate/JPA metadata on startup with non-destructive schema updates.
         // -----------------------------------------------------------------
-        // SQLErrorCodesResolver("H2") loads duplicate-key SQL error codes from
-        // Axon's built-in SQLErrorCode.properties (H2.duplicateKeyCodes=23001,23505).
+        // SQLErrorCodesResolver loads duplicate-key SQL error codes from
+        // Axon's built-in SQLErrorCode.properties based on the database product name.
+        // The database name is configurable via axon.event-store.sql-error-codes.database-product-name
+        // (defaults to "H2", use "Microsoft SQL Server" for MSSQL).
         // Without this, JpaEventStorageEngine cannot tell a constraint violation apart
         // from other exceptions and always throws EventStoreException instead of
         // AggregateStreamCreationException — preventing proper 409 mapping for
@@ -191,7 +208,7 @@ public class AxonConfig {
         JpaEventStorageEngine storageEngine = JpaEventStorageEngine.builder()
                 .entityManagerProvider(empProvider)
                 .transactionManager(txManager)
-                .persistenceExceptionResolver(new SQLErrorCodesResolver("H2"))
+                .persistenceExceptionResolver(new SQLErrorCodesResolver(databaseProductName))
                 .eventSerializer(serializer)
                 .snapshotSerializer(serializer)
                 .build();

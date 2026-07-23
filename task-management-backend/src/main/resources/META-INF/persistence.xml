@@ -77,7 +77,16 @@
           specified here because persistence.xml overrides that config.
         -->
         <properties>
-            <!-- H2 dialect — matches the H2 datasource in application.yaml -->
+            <!--
+              Hibernate dialect — MUST match the configured database.
+              Quarkus requires explicit dialect at build-time.
+
+              ╔═══════════════════════════════════════════════════════════════╗
+              ║  CHANGE THIS WHEN SWITCHING DATABASES:                        ║
+              ║    H2:    org.hibernate.dialect.H2Dialect                     ║
+              ║    MSSQL: org.hibernate.dialect.SQLServerDialect              ║
+              ╚═══════════════════════════════════════════════════════════════╝
+            -->
             <property name="hibernate.dialect"
                       value="org.hibernate.dialect.H2Dialect"/>
             <!--
