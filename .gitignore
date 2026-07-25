@@ -10,6 +10,10 @@ dependency-reduced-pom.xml
 # Quarkus
 .quarkus/
 
+# quarkus-jacoco writes these class/source manifests to the module root
+task-management-backend/report-classes.txt
+task-management-backend/report-sources.txt
+
 # IntelliJ IDEA
 .idea/
 *.iml
