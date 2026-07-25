@@ -491,4 +491,26 @@ class TaskResourceTest {
                 .body("code", equalTo("VALIDATION_ERROR"))
                 .body("message", containsString("newAssigneeName"));
     }
+
+    @Test
+    @Order(26)
+    @DisplayName("POST /tasks USER_PROVISIONING without expectedExternalUsers — returns 400 business rule error")
+    void userProvisioningWithoutExpectedUsersReturnsBadRequest() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(new CreateTaskRequest(
+                        "provisioning-" + UUID.randomUUID(),
+                        "Provision new starters",
+                        "Should require at least one expected user",
+                        "onboarding-team",
+                        Instant.now().plus(1, ChronoUnit.DAYS),
+                        TaskType.USER_PROVISIONING,
+                        List.of()))
+        .when()
+                .post("/tasks")
+        .then()
+                .statusCode(400)
+                .body("code", equalTo("BAD_REQUEST"))
+                .body("message", containsString("expectedExternalUsers"));
+    }
 }
