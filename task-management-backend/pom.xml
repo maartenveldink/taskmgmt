@@ -27,6 +27,7 @@
         <lombok.version>1.18.32</lombok.version>
         <surefire.plugin.version>3.2.5</surefire.plugin.version>
         <openapi.generator.version>7.8.0</openapi.generator.version>
+        <jacoco.plugin.version>0.8.12</jacoco.plugin.version>
     </properties>
 
     <!-- ===================================================================
@@ -262,6 +263,36 @@
                         </java.util.logging.manager>
                         <maven.home>${maven.home}</maven.home>
                     </systemPropertyVariables>
+                </configuration>
+            </plugin>
+
+            <!-- JaCoCo — code coverage. prepare-agent wires the coverage agent
+                 into the surefire argLine; report renders HTML/XML/CSV into
+                 target/site/jacoco after the test phase. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <excludes>
+                        <!-- OpenAPI-generated sources are not our code to cover -->
+                        <exclude>eu/poc/taskmanagement/generated/**</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
 
