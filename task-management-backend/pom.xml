@@ -29,6 +29,9 @@
         <openapi.generator.version>7.8.0</openapi.generator.version>
         <jacoco.plugin.version>0.8.12</jacoco.plugin.version>
         <assertj.version>3.26.3</assertj.version>
+        <!-- Where SonarQube picks up the merged JaCoCo report (default location,
+             stated explicitly for clarity). -->
+        <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
     </properties>
 
     <!-- ===================================================================
@@ -277,36 +280,51 @@
                             org.jboss.logmanager.LogManager
                         </java.util.logging.manager>
                         <maven.home>${maven.home}</maven.home>
+                        <!-- Point the quarkus-jacoco extension at the same exec
+                             file the jacoco-maven-plugin agent appends to, and
+                             stop it from wiping that file, so @QuarkusTest and
+                             plain unit-test coverage merge into one report. -->
+                        <quarkus.jacoco.data-file>${project.build.directory}/jacoco-quarkus.exec</quarkus.jacoco.data-file>
+                        <quarkus.jacoco.reuse-data-file>true</quarkus.jacoco.reuse-data-file>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
 
-            <!-- JaCoCo — code coverage.
+            <!-- JaCoCo — code coverage across BOTH test kinds.
 
-                 The coverage *agent* is supplied by the quarkus-jacoco test
-                 extension (dependency below), which writes execution data to
-                 target/jacoco-quarkus.exec.  We deliberately do NOT add this
-                 plugin's prepare-agent goal: @QuarkusTest loads application
-                 classes through the Quarkus runtime classloader with bytecode
-                 transformation, and a vanilla jacoco agent cannot map that
-                 runtime coverage back to the on-disk classes (it reports 0%).
-                 If both agents are present, quarkus-jacoco stands down and no
-                 @QuarkusTest coverage is recorded at all.
+                 @QuarkusTest loads application classes through the Quarkus
+                 runtime classloader; plain unit tests (TaskAggregate, sagas via
+                 Axon fixtures) load them through the normal classloader.  To
+                 count both in one report we run two coverage sources that write
+                 to the SAME exec file (target/jacoco-quarkus.exec):
 
-                 This plugin therefore only renders the report from the
-                 extension's exec file into target/site/jacoco.
+                   * the quarkus-jacoco extension (test dependency) records the
+                     @QuarkusTest classloader.  quarkus.jacoco.reuse-data-file
+                     (set in the surefire config) stops it from wiping the file.
+                   * this plugin's prepare-agent records everything else.
+                     exclClassLoaders=*QuarkusClassLoader keeps it from also
+                     instrumenting the Quarkus-loaded classes (which would fail
+                     with "already instrumented"); append=true adds to the file.
 
-                 Known limitation: classes exercised solely by plain
-                 (non-@QuarkusTest) unit tests — e.g. TaskAggregate and the
-                 sagas, which use Axon test fixtures — are under-counted here,
-                 because those tests run in the normal classloader that the
-                 Quarkus agent does not track.  Their dedicated unit tests still
-                 cover them; the reported percentage is a conservative floor. -->
+                 The report goal then renders the combined data into
+                 target/site/jacoco (jacoco.xml is consumed by Sonar via
+                 sonar.coverage.jacoco.xmlReportPaths). -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>${jacoco.plugin.version}</version>
                 <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                        <configuration>
+                            <destFile>${project.build.directory}/jacoco-quarkus.exec</destFile>
+                            <append>true</append>
+                            <exclClassLoaders>*QuarkusClassLoader</exclClassLoaders>
+                        </configuration>
+                    </execution>
                     <execution>
                         <id>report</id>
                         <phase>test</phase>

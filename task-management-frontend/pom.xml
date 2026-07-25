@@ -18,6 +18,12 @@
     <name>Task Management PoC — Frontend</name>
     <description>Angular 19 single-page application for the Task Management PoC.</description>
 
+    <properties>
+        <!-- The Angular frontend is out of scope for SonarQube analysis; the
+             SonarScanner should only inspect the backend module. -->
+        <sonar.skip>true</sonar.skip>
+    </properties>
+
     <build>
         <plugins>
             <!--
