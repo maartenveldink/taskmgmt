@@ -184,6 +184,14 @@
             <artifactId>quarkus-junit5</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Supplies the JaCoCo coverage agent in a way that understands the
+             Quarkus test classloader; the jacoco-maven-plugin renders the report
+             from the execution data it writes. -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jacoco</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
@@ -273,34 +281,47 @@
                 </configuration>
             </plugin>
 
-            <!-- JaCoCo — code coverage. prepare-agent wires the coverage agent
-                 into the surefire argLine; report renders HTML/XML/CSV into
-                 target/site/jacoco after the test phase. -->
+            <!-- JaCoCo — code coverage.
+
+                 The coverage *agent* is supplied by the quarkus-jacoco test
+                 extension (dependency below), which writes execution data to
+                 target/jacoco-quarkus.exec.  We deliberately do NOT add this
+                 plugin's prepare-agent goal: @QuarkusTest loads application
+                 classes through the Quarkus runtime classloader with bytecode
+                 transformation, and a vanilla jacoco agent cannot map that
+                 runtime coverage back to the on-disk classes (it reports 0%).
+                 If both agents are present, quarkus-jacoco stands down and no
+                 @QuarkusTest coverage is recorded at all.
+
+                 This plugin therefore only renders the report from the
+                 extension's exec file into target/site/jacoco.
+
+                 Known limitation: classes exercised solely by plain
+                 (non-@QuarkusTest) unit tests — e.g. TaskAggregate and the
+                 sagas, which use Axon test fixtures — are under-counted here,
+                 because those tests run in the normal classloader that the
+                 Quarkus agent does not track.  Their dedicated unit tests still
+                 cover them; the reported percentage is a conservative floor. -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>${jacoco.plugin.version}</version>
                 <executions>
                     <execution>
-                        <id>prepare-agent</id>
-                        <goals>
-                            <goal>prepare-agent</goal>
-                        </goals>
-                    </execution>
-                    <execution>
                         <id>report</id>
                         <phase>test</phase>
                         <goals>
                             <goal>report</goal>
                         </goals>
+                        <configuration>
+                            <dataFile>${project.build.directory}/jacoco-quarkus.exec</dataFile>
+                            <excludes>
+                                <!-- OpenAPI-generated sources are not our code to cover -->
+                                <exclude>eu/poc/taskmanagement/generated/**</exclude>
+                            </excludes>
+                        </configuration>
                     </execution>
                 </executions>
-                <configuration>
-                    <excludes>
-                        <!-- OpenAPI-generated sources are not our code to cover -->
-                        <exclude>eu/poc/taskmanagement/generated/**</exclude>
-                    </excludes>
-                </configuration>
             </plugin>
 
             <plugin>
