@@ -101,7 +101,7 @@
 
 ## Referenties
 
-- [Production Readiness Review](../PRODUCTION_READINESS_REVIEW.md)
-- [How to Switch to MSSQL](../task-management-backend/docs/how-to-switch-to-mssql.md)
-- [Architecture Documentation](./architecture.md)
+- [Production Readiness Review](PRODUCTION_READINESS_REVIEW.md)
+- [How to Switch to MSSQL](how-to-switch-to-mssql.md)
+- [Architecture Documentation](architecture.md)
 
