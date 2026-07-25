@@ -12,6 +12,7 @@ import eu.poc.taskmanagement.model.event.TaskCreatedEvent;
 import eu.poc.taskmanagement.model.event.TaskRejectedEvent;
 import eu.poc.taskmanagement.model.event.TaskStartedEvent;
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.axonframework.deadline.DeadlineManager;
 import org.axonframework.deadline.annotation.DeadlineHandler;
@@ -19,17 +20,14 @@ import org.axonframework.modelling.saga.EndSaga;
 import org.axonframework.modelling.saga.SagaEventHandler;
 import org.axonframework.modelling.saga.SagaLifecycle;
 import org.axonframework.modelling.saga.StartSaga;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 
+@Slf4j
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 public class UserProvisioningCompletionSaga {
-
-    private static final Logger LOG = LoggerFactory.getLogger(UserProvisioningCompletionSaga.class);
     static final String POLL_DEADLINE = "user-provisioning-poll";
     private static final long POLL_INTERVAL_SECONDS = 5L;
 
@@ -57,7 +55,7 @@ public class UserProvisioningCompletionSaga {
         }
 
         if (event.expectedExternalUsers() == null || event.expectedExternalUsers().isEmpty()) {
-            LOG.warn("Not starting user provisioning saga for taskId={} because expectedExternalUsers is empty", event.taskId());
+            log.warn("Not starting user provisioning saga for taskId={} because expectedExternalUsers is empty", event.taskId());
             SagaLifecycle.end();
             return;
         }
@@ -108,7 +106,7 @@ public class UserProvisioningCompletionSaga {
         }
 
         if (Instant.now().isAfter(deadline)) {
-            LOG.warn("User provisioning completion saga timed out for taskId={}, expectedUsers={}", taskId, expectedUsers);
+            log.warn("User provisioning completion saga timed out for taskId={}, expectedUsers={}", taskId, expectedUsers);
             SagaLifecycle.end();
             return;
         }
