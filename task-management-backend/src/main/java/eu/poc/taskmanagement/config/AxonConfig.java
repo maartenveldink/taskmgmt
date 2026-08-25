@@ -59,7 +59,9 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  * ({@link TaskDeadlineProcessManager}, {@link UserProvisioningProcessManager})
  * that are registered here as event-handling components on the subscribing
  * processor.  They use a {@code DeadlineScheduler}
- * ({@code ScheduledExecutorService}) instead of Quartz for timed call-backs.
+ * ({@link PersistentDeadlineScheduler}, backed by a durable {@code scheduled_job}
+ * table) instead of Quartz for timed call-backs, so schedules survive a restart
+ * and are claimed by exactly one node in a cluster.
  *
  * <h2>Transaction model</h2>
  * The REST layer annotates command-dispatching methods with

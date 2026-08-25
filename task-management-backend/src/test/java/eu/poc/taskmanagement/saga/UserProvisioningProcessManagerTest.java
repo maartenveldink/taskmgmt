@@ -21,6 +21,7 @@ import org.mockito.Mockito;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -47,6 +48,13 @@ class UserProvisioningProcessManagerTest {
         @Override
         public Set<Class<?>> getEnabledAlternatives() {
             return Set.of(FakeDeadlineScheduler.class);
+        }
+
+        @Override
+        public Map<String, String> getConfigOverrides() {
+            // The fake scheduler drives polls deterministically; keep the real
+            // PersistentDeadlineScheduler's background poller from also firing.
+            return Map.of("scheduler.persistent.enabled", "false");
         }
     }
 

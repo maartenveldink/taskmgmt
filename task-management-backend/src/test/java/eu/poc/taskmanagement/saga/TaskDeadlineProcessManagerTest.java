@@ -47,7 +47,8 @@ class TaskDeadlineProcessManagerTest {
     void setup() {
         scheduler = new FakeDeadlineScheduler();
         commandGateway = Mockito.mock(CommandGateway.class);
-        processManager = new TaskDeadlineProcessManager(scheduler, commandGateway, Runnable::run);
+        processManager = new TaskDeadlineProcessManager(scheduler, commandGateway);
+        scheduler.register(processManager);
     }
 
     private Instant deadline() {
@@ -72,8 +73,6 @@ class TaskDeadlineProcessManagerTest {
     @DisplayName("No escalation when task completes before deadline")
     void noEscalationWhenCompletedOnTime() {
         processManager.on(createdEvent(deadline()));
-        processManager.on(new TaskAssignedEvent(TASK_ID, "unassigned", "alice", "unassigned", null));
-        processManager.on(new TaskStartedEvent(TASK_ID, TaskStatus.ASSIGNED));
         processManager.on(new TaskCompletedEvent(TASK_ID, TaskStatus.IN_PROGRESS));
 
         assertFalse(scheduler.hasPending());

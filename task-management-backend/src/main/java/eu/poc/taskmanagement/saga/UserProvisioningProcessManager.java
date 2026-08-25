@@ -32,15 +32,20 @@ import java.util.Set;
  * <h2>State</h2>
  * Per-task process state is a transactional database row ({@link ProvisioningState}),
  * not in-memory.  The state is written on the Axon event-processor thread and read
- * from the {@code ScheduledExecutorService} scheduler thread; persisting it means
- * the database provides isolation and optimistic locking between those threads
- * (and the state survives a restart).  Every access below therefore runs inside a
- * JTA transaction — the {@code @EventHandler} methods via {@link Transactional},
- * the scheduler-thread {@link #poll(String)} via {@link TransactionRunner}.
+ * when a poll fires; persisting it means the database provides isolation and
+ * optimistic locking between those threads (and the state survives a restart).
+ *
+ * <h2>Durable, cluster-safe polling</h2>
+ * Each poll is a durable {@link ScheduledJob} scheduled through the
+ * {@link DeadlineScheduler}.  The {@link PersistentDeadlineScheduler} runs
+ * {@link #execute(String, Instant)} inside a fresh JTA transaction (so the state
+ * read/write and any resulting event-store append commit durably and atomically),
+ * and guarantees that a due poll is claimed and run by exactly one node.  Because
+ * the poll is a database row, a pending poll also survives a restart.
  *
  * <h2>Lifecycle</h2>
  * <pre>
- *   TaskCreatedEvent (USER_PROVISIONING, non-empty expected users) → start
+ *   TaskCreatedEvent (USER_PROVISIONING, non-empty expected users) → persist state
  *   TaskStartedEvent  → begin polling every {@value #POLL_INTERVAL_SECONDS}s
  *   poll fires        → all expected users present?  → CompleteTaskCommand + end
  *                       past deadline?               → time out + end
@@ -50,24 +55,21 @@ import java.util.Set;
  */
 @Slf4j
 @ApplicationScoped
-public class UserProvisioningProcessManager {
+public class UserProvisioningProcessManager implements ScheduledJobHandler {
 
     private static final long POLL_INTERVAL_SECONDS = 5L;
 
     private final DeadlineScheduler scheduler;
     private final ExternalUserDirectoryClient externalUserDirectoryClient;
     private final CommandGateway commandGateway;
-    private final TransactionRunner transactionRunner;
 
     @Inject
     public UserProvisioningProcessManager(DeadlineScheduler scheduler,
                                           ExternalUserDirectoryClient externalUserDirectoryClient,
-                                          CommandGateway commandGateway,
-                                          TransactionRunner transactionRunner) {
+                                          CommandGateway commandGateway) {
         this.scheduler = scheduler;
         this.externalUserDirectoryClient = externalUserDirectoryClient;
         this.commandGateway = commandGateway;
-        this.transactionRunner = transactionRunner;
     }
 
     // =========================================================================
@@ -129,21 +131,17 @@ public class UserProvisioningProcessManager {
     }
 
     // =========================================================================
-    // Poll call-back (runs on a scheduler thread)
+    // Scheduled-job handler (runs inside a fresh tx opened by the scheduler)
     // =========================================================================
 
-    private void poll(String taskId) {
-        try {
-            // No ambient transaction on the scheduler thread — open a fresh one so
-            // the state read/write and any resulting event-store append commit
-            // durably and atomically.
-            transactionRunner.runInTransaction(() -> doPoll(taskId));
-        } catch (RuntimeException e) {
-            // Never let an exception kill the scheduler thread. A concurrent
-            // terminal event may have removed/updated the row (optimistic-lock
-            // conflict); that path already handles completion, so we simply stop.
-            log.warn("Provisioning poll failed for taskId={}; stopping polling for this task", taskId, e);
-        }
+    @Override
+    public ScheduledJobType type() {
+        return ScheduledJobType.PROVISIONING_POLL;
+    }
+
+    @Override
+    public void execute(String taskId, Instant fireAt) {
+        doPoll(taskId);
     }
 
     private void doPoll(String taskId) {
@@ -185,7 +183,7 @@ public class UserProvisioningProcessManager {
     private void scheduleNextPoll(ProvisioningState state) {
         String taskId = state.taskId;
         state.scheduleId = scheduler.schedule(
-                Instant.now().plusSeconds(POLL_INTERVAL_SECONDS), () -> poll(taskId));
+                Instant.now().plusSeconds(POLL_INTERVAL_SECONDS), ScheduledJobType.PROVISIONING_POLL, taskId);
     }
 
     private void updateStatus(String taskId, TaskStatus status) {

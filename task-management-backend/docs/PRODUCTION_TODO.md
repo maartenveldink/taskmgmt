@@ -34,7 +34,7 @@
   - Geschatte inspanning: 2-4 uur
 
 - [ ] **5. Graceful shutdown implementeren**
-  - Quartz scheduler shutdown coördineren
+  - Persistent scheduler poller (`PersistentDeadlineScheduler`) netjes stoppen
   - Axon Framework shutdown orchestreren
   - `ShutdownEvent` handler implementeren
   - Geschatte inspanning: 1-2 uur
@@ -85,6 +85,10 @@
 - [x] Docker multi-stage build met non-root user
 - [x] Unit en integratie tests
 - [x] MSSQL Flyway migraties voorbereid
+- [x] Durable procesmanager-state (`ProvisioningState` JPA-entiteit)
+- [x] Durable, cluster-veilige scheduler (`scheduled_job` tabel + lease-based claiming)
+  - Timers (deadline-escalatie én provisioning-polls) overleven een restart
+  - Elke job wordt door precies één node uitgevoerd (veilig voor >1 instance)
 
 ---
 

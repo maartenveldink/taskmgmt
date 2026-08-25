@@ -119,58 +119,63 @@ The Task Management PoC is a **well-structured CQRS/Event Sourcing implementatio
 - **Impact**: Retry logic could fail; no safe retry mechanism
 - **Fix**: Add `X-Idempotency-Key` header support
 
-### 7. **Deadline Scheduling Configuration Not Environment-Aware**
-- **Current**: A `ScheduledExecutorService` (see `ExecutorDeadlineScheduler`) with a
-  fixed thread pool drives the deadline/provisioning process managers.  Axon 5.3.1
-  ships no saga/deadline/scheduling modules, so this logic lives outside Axon.
-- **Issue**: No separate dev/prod thread pool configuration; schedules are held
-  in memory and are lost on restart.
-- **Fix**: Externalize the pool size to configuration and, for production,
-  replace the in-memory scheduler with a durable/clusterable scheduler.
+### 7. **Deadline Scheduling — Durable & Cluster-Safe (implemented)**
+- **Current**: Timed process-manager call-backs (deadline escalation, provisioning
+  polls) are persisted as `scheduled_job` rows and driven by a background poller in
+  `PersistentDeadlineScheduler`. Axon 5.3.1 ships no saga/deadline/scheduling
+  modules, so this logic lives outside Axon.
+- **Restart recovery**: because every schedule is a database row, a deadline or
+  poll that comes due during downtime is picked up by the poller on the next
+  startup — pending timers are no longer lost on restart.
+- **Cluster safety**: each due job is claimed with an atomic conditional `UPDATE`
+  that takes a time-boxed lease (`locked_until`/`locked_by`), so exactly one node
+  runs each job even when several instances poll concurrently. A crashed node's
+  lease simply expires and the job is retried.
+- **Config**: `scheduler.persistent.{enabled,poll-interval-millis,lease-seconds}`.
+- **Remaining nuance**: the poll cadence and lease are global (not per-environment
+  tuned); acceptable defaults are shipped.
 
 ### 8. **No Graceful Shutdown**
 - **Issue**: Deadline scheduler and Axon Framework shutdown not orchestrated
 - **Fix**: Implement `ShutdownEvent` handler for clean shutdown sequence
 
 ### 8a. **Process-Manager Concurrency (scheduler thread vs event-processor thread)**
-The `TaskDeadlineProcessManager` / `UserProvisioningProcessManager` state is mutated
-on the Axon event-processor thread but read (and acted on) from the
-`ScheduledExecutorService` scheduler thread. Four items were reviewed:
+The `TaskDeadlineProcessManager` / `UserProvisioningProcessManager` react to domain
+events on the Axon event-processor thread and run timed call-backs from the
+scheduler poller thread. Items reviewed:
 
 - **Escalation durability (fixed)** — deadline/provisioning commands are dispatched
-  from the scheduler thread, which has no ambient `@Transactional`. Both dispatch
-  sites now run inside `TransactionRunner.runInTransaction(...)`
-  (`QuarkusTransactionRunner` → `QuarkusTransaction.requiringNew()`), so the
-  resulting event-store append commits durably instead of only being published
-  in-memory to the projections. Guarded by `TaskBackendFlowTest` and
+  from the scheduler poller thread, which has no ambient `@Transactional`. The
+  `PersistentDeadlineScheduler` runs each job's handler (and the job-row deletion)
+  inside `QuarkusTransaction.requiringNew()`, so the resulting event-store append
+  commits durably and atomically with the schedule removal — instead of only being
+  published in-memory to the projections. Guarded by `TaskBackendFlowTest` and
   `UserProvisioningFlowTest` (both assert the event count in `AggregateEventEntry`).
-- **Memory visibility / state isolation (fixed)** — the two process managers were
-  reviewed separately:
-    - *User provisioning* — its per-task state is now a transactional database row
-      (`ProvisioningState`, table `provisioning_state`) instead of an in-memory
-      object. All reads/writes happen inside a JTA transaction (event handlers via
-      `@Transactional`, the scheduler-thread poll via `TransactionRunner`), so the
-      database provides isolation between the event-processor and scheduler threads,
-      an `@Version` column adds optimistic locking against lost updates, and the
-      state survives a restart. Covered by `UserProvisioningProcessManagerTest`.
-    - *Deadline* — `TaskDeadlineProcessManager` still holds its `DeadlineState` in a
-      `ConcurrentHashMap`; its fields are `volatile` to give the scheduler thread a
-      happens-before view of writes made on the event-processor thread. Persisting
-      this state the same way is a straightforward follow-up if required.
-- **Phantom timers on rollback (accepted for PoC)** — timers are armed inside the
-  event handler that reacts to `TaskCreatedEvent`; if that unit of work rolled back
-  a stale timer could remain. Impact is bounded: `fireDeadline`/`poll` re-check the
-  authoritative state and the aggregate re-validates before emitting, so a phantom
-  fire is a no-op. A production fix would arm timers only after commit via a
-  transaction synchronization.
+- **Memory visibility / state isolation (fixed)** — neither process manager keeps
+  per-task state in memory any more:
+    - *User provisioning* — its per-task state is a transactional database row
+      (`ProvisioningState`, table `provisioning_state`). All reads/writes happen
+      inside a JTA transaction, the database provides isolation between the
+      event-processor and scheduler threads, an `@Version` column adds optimistic
+      locking against lost updates, and the state survives a restart. Covered by
+      `UserProvisioningProcessManagerTest`.
+    - *Deadline* — `TaskDeadlineProcessManager` is now **stateless**: the pending
+      deadline is a durable `scheduled_job` row, and the aggregate re-checks its
+      authoritative status before emitting `TaskDeadlineExceededEvent`, so a late or
+      duplicate fire is safely ignored. Covered by `TaskDeadlineProcessManagerTest`.
+- **Restart recovery & cluster safety (fixed)** — both the deadline timer and the
+  provisioning poll are durable `scheduled_job` rows claimed via a leased,
+  conditional `UPDATE` (see item #7). Pending timers survive a restart and each job
+  fires exactly once across a multi-node deployment.
+- **Phantom timers on rollback (accepted for PoC)** — a `scheduled_job` is inserted
+  inside the same transaction as the event handler that reacts to the triggering
+  event, so a rolled-back unit of work also rolls back the schedule (an improvement
+  over the previous in-memory arming). Any residual edge is bounded: the aggregate
+  re-validates before emitting, so a phantom fire is a no-op.
 - **`end()` vs `scheduleNextPoll()` race (accepted for PoC)** — a poll already in
   flight can reschedule one extra poll after `end()` cancels; that extra poll finds
-  the state removed and returns without effect. Harmless leak of a single no-op poll.
-- **In-memory scheduling (accepted for PoC)** — the provisioning *state* is now
-  durable, but the scheduler itself (`ExecutorDeadlineScheduler`) and the deadline
-  process state remain in memory, so pending timers are still lost on restart (see
-  items #6/#7). Recovery scheduling (re-arming polls for persisted rows on startup)
-  is out of scope for this PoC.
+  the state removed and returns without effect. Harmless leak of a single no-op poll
+  row, which the poller deletes when it fires.
 
 ### 9. **Test Database Isolated from Real Database**
 - **Status**: ✅ Good (H2 in-memory for tests)

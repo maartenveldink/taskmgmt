@@ -1,22 +1,18 @@
 package eu.poc.taskmanagement.saga;
 
-import eu.poc.taskmanagement.model.TaskStatus;
 import eu.poc.taskmanagement.model.command.MarkDeadlineExceededCommand;
-import eu.poc.taskmanagement.model.event.TaskAssignedEvent;
 import eu.poc.taskmanagement.model.event.TaskCancelledEvent;
 import eu.poc.taskmanagement.model.event.TaskCompletedEvent;
 import eu.poc.taskmanagement.model.event.TaskCreatedEvent;
 import eu.poc.taskmanagement.model.event.TaskRejectedEvent;
-import eu.poc.taskmanagement.model.event.TaskStartedEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.messaging.commandhandling.gateway.CommandGateway;
 import org.axonframework.messaging.eventhandling.annotation.EventHandler;
 
 import java.time.Instant;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Deadline management process manager for a single task.
@@ -29,134 +25,100 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <h2>Lifecycle</h2>
  * <pre>
- *   TaskCreatedEvent   → start   → schedule a deadline call-back at event.deadline()
- *   TaskCompletedEvent → end     → cancel scheduled call-back (completed on time)
- *   TaskCancelledEvent → end     → cancel scheduled call-back (terminal — no escalation)
- *   TaskRejectedEvent  → end     → cancel scheduled call-back (terminal — no escalation)
+ *   TaskCreatedEvent   → schedule a DEADLINE_ESCALATION job at event.deadline()
+ *   TaskCompletedEvent → cancel the escalation job (completed on time)
+ *   TaskCancelledEvent → cancel the escalation job (terminal — no escalation)
+ *   TaskRejectedEvent  → cancel the escalation job (terminal — no escalation)
  *   deadline fires     → dispatch MarkDeadlineExceededCommand → entity emits
  *                        TaskDeadlineExceededEvent (guarded by authoritative state)
  * </pre>
  *
+ * <h2>Stateless by design</h2>
+ * The process manager keeps <em>no</em> in-memory per-task state.  The pending
+ * deadline lives entirely as a durable {@link ScheduledJob} row managed by the
+ * {@link PersistentDeadlineScheduler}, so it survives a restart and is claimed by
+ * exactly one node in a cluster.  Cancellation is expressed as
+ * {@link DeadlineScheduler#cancelAll(ScheduledJobType, String)} by
+ * {@code (DEADLINE_ESCALATION, taskId)} rather than by tracking a schedule id.
+ *
  * <h2>Escalation behaviour</h2>
  * When the deadline elapses while the task is still active, the process manager
- * dispatches a {@link MarkDeadlineExceededCommand}.  The entity then appends a
- * {@code TaskDeadlineExceededEvent} (unless it has meanwhile become terminal),
- * which the audit trail records.  Routing through the entity keeps the
- * escalation event on the task's own event stream and consistent with its
- * current state.
- *
- * <h2>State</h2>
- * Per-task process state is held in memory, matching the previous Quartz
- * RAM-job-store / in-memory H2 behaviour of this PoC.
+ * dispatches a {@link MarkDeadlineExceededCommand}.  The entity re-checks its
+ * authoritative status and only then appends a {@code TaskDeadlineExceededEvent}
+ * (it no-ops if the task has meanwhile become terminal).  Because that guard lives
+ * in the aggregate, this process manager no longer needs to track the last known
+ * status itself — a late or duplicate fire is safely ignored by the entity.
  */
 @Slf4j
 @ApplicationScoped
-public class TaskDeadlineProcessManager {
-
-    private static final class DeadlineState {
-        // Written on the event-processor thread, read on the scheduler thread.
-        // volatile establishes the happens-before needed for safe cross-thread reads.
-        private volatile Instant deadline;
-        private volatile TaskStatus lastKnownStatus;
-        private volatile String scheduleId;
-    }
-
-    private final Map<String, DeadlineState> states = new ConcurrentHashMap<>();
+public class TaskDeadlineProcessManager implements ScheduledJobHandler {
 
     private final DeadlineScheduler scheduler;
     private final CommandGateway commandGateway;
-    private final TransactionRunner transactionRunner;
 
     @Inject
     public TaskDeadlineProcessManager(DeadlineScheduler scheduler,
-                                      CommandGateway commandGateway,
-                                      TransactionRunner transactionRunner) {
+                                      CommandGateway commandGateway) {
         this.scheduler = scheduler;
         this.commandGateway = commandGateway;
-        this.transactionRunner = transactionRunner;
     }
 
     // =========================================================================
-    // Event handlers
+    // Event handlers (event-processor thread, within the command's JTA tx)
     // =========================================================================
 
     @EventHandler
+    @Transactional
     public void on(TaskCreatedEvent event) {
-        DeadlineState state = new DeadlineState();
-        state.deadline = event.deadline();
-        state.lastKnownStatus = TaskStatus.CREATED;
-        String taskId = event.taskId();
-        state.scheduleId = scheduler.schedule(event.deadline(), () -> fireDeadline(taskId));
-        states.put(taskId, state);
-        log.debug("Deadline process started for taskId={} — deadline scheduled at {}", taskId, event.deadline());
+        if (event.deadline() == null) {
+            return;
+        }
+        scheduler.schedule(event.deadline(), ScheduledJobType.DEADLINE_ESCALATION, event.taskId());
+        log.debug("Deadline process started for taskId={} — deadline scheduled at {}",
+                event.taskId(), event.deadline());
     }
 
     @EventHandler
-    public void on(TaskAssignedEvent event) {
-        updateStatus(event.taskId(), TaskStatus.ASSIGNED);
-    }
-
-    @EventHandler
-    public void on(TaskStartedEvent event) {
-        updateStatus(event.taskId(), TaskStatus.IN_PROGRESS);
-    }
-
-    @EventHandler
+    @Transactional
     public void on(TaskCompletedEvent event) {
-        end(event.taskId(), TaskStatus.DONE, "completed on time");
+        end(event.taskId(), "completed on time");
     }
 
     @EventHandler
+    @Transactional
     public void on(TaskCancelledEvent event) {
-        end(event.taskId(), TaskStatus.CANCELLED, "cancelled — no escalation");
+        end(event.taskId(), "cancelled — no escalation");
     }
 
     @EventHandler
+    @Transactional
     public void on(TaskRejectedEvent event) {
-        end(event.taskId(), TaskStatus.REJECTED, "rejected — no escalation");
+        end(event.taskId(), "rejected — no escalation");
     }
 
     // =========================================================================
-    // Deadline call-back (runs on a scheduler thread)
+    // Scheduled-job handler (runs inside a fresh tx opened by the scheduler)
     // =========================================================================
 
-    private void fireDeadline(String taskId) {
-        DeadlineState state = states.get(taskId);
-        if (state == null) {
-            return;
-        }
-        if (state.lastKnownStatus != null && state.lastKnownStatus.isTerminal()) {
-            log.info("Deadline fired for taskId={} but task is already terminal ({}). No escalation.",
-                    taskId, state.lastKnownStatus);
-            states.remove(taskId);
-            return;
-        }
+    @Override
+    public ScheduledJobType type() {
+        return ScheduledJobType.DEADLINE_ESCALATION;
+    }
+
+    @Override
+    public void execute(String taskId, Instant fireAt) {
         // Delegate to the entity, which re-checks the authoritative state before
-        // emitting TaskDeadlineExceededEvent.  This runs on a scheduler thread with
-        // no ambient transaction, so open a fresh transaction to ensure the
-        // event-store append is committed durably (not merely published in-memory).
-        transactionRunner.runInTransaction(() ->
-                commandGateway.sendAndWait(new MarkDeadlineExceededCommand(taskId, state.deadline)));
-        states.remove(taskId);
+        // emitting TaskDeadlineExceededEvent. fireAt is the original deadline the
+        // job was scheduled for, so it is carried through to the escalation event.
+        commandGateway.sendAndWait(new MarkDeadlineExceededCommand(taskId, fireAt));
     }
 
     // =========================================================================
     // Helpers
     // =========================================================================
 
-    private void updateStatus(String taskId, TaskStatus status) {
-        DeadlineState state = states.get(taskId);
-        if (state != null) {
-            state.lastKnownStatus = status;
-        }
-    }
-
-    private void end(String taskId, TaskStatus terminalStatus, String reason) {
-        DeadlineState state = states.remove(taskId);
-        if (state != null) {
-            state.lastKnownStatus = terminalStatus;
-            scheduler.cancel(state.scheduleId);
-            log.debug("Deadline process ended for taskId={}: {}", taskId, reason);
-        }
+    private void end(String taskId, String reason) {
+        scheduler.cancelAll(ScheduledJobType.DEADLINE_ESCALATION, taskId);
+        log.debug("Deadline process ended for taskId={}: {}", taskId, reason);
     }
 }

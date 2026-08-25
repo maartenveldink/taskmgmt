@@ -19,8 +19,9 @@
                             used by the Axon 5 AggregateBasedJpaEventStorageEngine.
 
   NOTE: Axon 5.3.1 has no saga module, so there are no SagaEntry /
-  AssociationValueEntry tables.  Sagas/deadlines are reimplemented as in-memory
-  CDI process managers (see saga package), so no extra JPA entities are needed.
+  AssociationValueEntry tables.  Sagas/deadlines are reimplemented as CDI
+  process managers (see saga package) whose durable state lives in the app's
+  own entities below (ProvisioningState, ScheduledJob).
 
   OWN ENTITIES
   ============
@@ -58,6 +59,9 @@
 
         <!-- Process-manager durable state -->
         <class>eu.poc.taskmanagement.saga.ProvisioningState</class>
+
+        <!-- Durable, cluster-safe scheduler backing PersistentDeadlineScheduler -->
+        <class>eu.poc.taskmanagement.saga.ScheduledJob</class>
 
         <!-- Axon event store table (axon-eventsourcing) -->
         <class>org.axonframework.eventsourcing.eventstore.jpa.AggregateEventEntry</class>

@@ -3,7 +3,7 @@ package eu.poc.taskmanagement.saga;
 import java.time.Instant;
 
 /**
- * Minimal scheduling abstraction used by the process managers that replace the
+ * Durable scheduling abstraction used by the process managers that replace the
  * former Axon sagas.
  *
  * <h2>Why this exists</h2>
@@ -14,23 +14,34 @@ import java.time.Instant;
  * event-driven process managers that schedule timed call-backs through this
  * abstraction.
  *
- * <p>The abstraction keeps the process managers unit-testable: production code
- * uses {@link ExecutorDeadlineScheduler} (a {@code ScheduledExecutorService}),
- * while tests supply a deterministic fake that fires call-backs on demand.
+ * <h2>Durable, typed jobs</h2>
+ * Rather than scheduling an opaque {@code Runnable}, callers schedule a
+ * {@link ScheduledJobType} for a task id.  The production implementation
+ * ({@link PersistentDeadlineScheduler}) persists each schedule as a database row
+ * and, when it fires, dispatches it to the matching {@link ScheduledJobHandler}.
+ * This is what makes schedules survive a restart and be safe to run on more than
+ * one node (only one node claims and runs each job).  Tests supply a deterministic
+ * fake that fires jobs on demand.
  */
 public interface DeadlineScheduler {
 
     /**
-     * Schedules {@code task} to run once at {@code when} (or immediately if
-     * {@code when} is already in the past).
+     * Schedules a job of {@code type} for {@code taskId} to run once at
+     * {@code when} (or as soon as possible if {@code when} is already past).
      *
      * @return an opaque schedule id that can be passed to {@link #cancel(String)}
      */
-    String schedule(Instant when, Runnable task);
+    String schedule(Instant when, ScheduledJobType type, String taskId);
 
     /**
-     * Cancels a previously scheduled task.  A no-op if the task already ran or
-     * the id is unknown.
+     * Cancels a previously scheduled job by its opaque id.  A no-op if the job
+     * already ran or the id is unknown.
      */
     void cancel(String scheduleId);
+
+    /**
+     * Cancels every pending job of {@code type} for {@code taskId}.  Idempotent —
+     * lets a stateless process manager cancel without tracking schedule ids.
+     */
+    void cancelAll(ScheduledJobType type, String taskId);
 }
