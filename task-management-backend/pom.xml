@@ -23,7 +23,7 @@
 
     <properties>
         <quarkus.platform.version>3.32.4</quarkus.platform.version>
-        <axon.version>4.9.3</axon.version>
+        <axon.version>5.3.1</axon.version>
         <lombok.version>1.18.32</lombok.version>
         <surefire.plugin.version>3.2.5</surefire.plugin.version>
         <openapi.generator.version>7.8.0</openapi.generator.version>
@@ -46,6 +46,20 @@
                 <version>${quarkus.platform.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!--
+                Axon 5's event serialization uses Jackson 3 (tools.jackson.*),
+                which depends on the Jackson 2.x annotations module at version
+                2.22 (it adds classes such as JsonApplyView).  The Quarkus BOM
+                pins jackson-annotations to 2.21, which would be selected by
+                dependency mediation and cause a NoClassDefFoundError at runtime.
+                Override it to 2.22 (backward compatible with Quarkus's Jackson 2
+                databind, as the 2.x annotations line is additive).
+            -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>2.22</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -88,16 +102,6 @@
         </dependency>
         -->
 
-        <!--
-            Quartz scheduler — used by Axon's QuartzDeadlineManager to schedule
-            saga deadline triggers.  Quarkus exposes the underlying
-            org.quartz.Scheduler as a CDI bean so Axon can consume it directly.
-        -->
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-quartz</artifactId>
-        </dependency>
-
         <!-- CDI / ArC -->
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -127,25 +131,21 @@
         </dependency>
 
         <!-- ===============================================================
-             Axon Framework — CQRS / Event Sourcing kernel
-             All four modules are needed:
-               axon-messaging    — commands, events, queries, deadline API
-               axon-modelling    — aggregates, sagas, @CommandHandler
-               axon-eventsourcing — JPA event store, snapshot store
-               axon-configuration — Configurer / DefaultConfigurer bootstrap
+             Axon Framework 5 — CQRS / Event Sourcing kernel
+             Module structure changed in Axon 5 (axon-configuration was folded
+             into the individual modules; each configurer lives in its module):
+               axon-messaging     — commands, events, queries, MessagingConfigurer
+               axon-modelling     — event-sourced entities, ModellingConfigurer
+               axon-eventsourcing — JPA event store, EventSourcingConfigurer
+               axon-conversion    — Converter / JacksonConverter (Jackson 3)
+
+             NOTE: Axon 5.3.1 has no saga/deadline/scheduling modules; those
+             flows are implemented natively (see saga package process managers).
         =============================================================== -->
         <dependency>
             <groupId>org.axonframework</groupId>
             <artifactId>axon-messaging</artifactId>
             <version>${axon.version}</version>
-            <!-- Exclude XStream to avoid its known security issues;
-                 we use JacksonSerializer instead -->
-            <exclusions>
-                <exclusion>
-                    <groupId>com.thoughtworks.xstream</groupId>
-                    <artifactId>xstream</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.axonframework</groupId>
@@ -159,7 +159,7 @@
         </dependency>
         <dependency>
             <groupId>org.axonframework</groupId>
-            <artifactId>axon-configuration</artifactId>
+            <artifactId>axon-conversion</artifactId>
             <version>${axon.version}</version>
         </dependency>
 
@@ -200,7 +200,7 @@
             <artifactId>rest-assured</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Axon test fixtures: AggregateTestFixture, SagaTestFixture -->
+        <!-- Axon 5 test fixtures: AxonTestFixture -->
         <dependency>
             <groupId>org.axonframework</groupId>
             <artifactId>axon-test</artifactId>

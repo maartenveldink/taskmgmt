@@ -2,25 +2,35 @@ package eu.poc.taskmanagement.model;
 
 import eu.poc.taskmanagement.model.command.*;
 import eu.poc.taskmanagement.model.event.*;
-import org.axonframework.commandhandling.CommandHandler;
-import org.axonframework.eventsourcing.EventSourcingHandler;
 import lombok.extern.slf4j.Slf4j;
-import org.axonframework.modelling.command.AggregateIdentifier;
-import org.axonframework.modelling.command.AggregateLifecycle;
+import org.axonframework.eventsourcing.annotation.EventSourcedEntity;
+import org.axonframework.eventsourcing.annotation.EventSourcingHandler;
+import org.axonframework.eventsourcing.annotation.reflection.EntityCreator;
+import org.axonframework.messaging.commandhandling.annotation.CommandHandler;
+import org.axonframework.messaging.eventhandling.gateway.EventAppender;
 import java.util.List;
 
 /**
- * Task aggregate — the write-side model.
+ * Task entity — the write-side model (Axon 5 event-sourced entity).
  *
  * <h2>Responsibilities</h2>
  * <ul>
  *   <li>Enforce all business invariants (valid state transitions, terminal-state guards)</li>
- *   <li>Apply domain events via {@code AggregateLifecycle.apply()} so they are stored
+ *   <li>Append domain events via the injected {@link EventAppender} so they are stored
  *       in the JPA event store and dispatched to all listeners</li>
- *   <li>Rebuild its own state from events via {@code @EventSourcingHandler} methods —
- *       the aggregate is never loaded from a snapshot table; instead Axon replays
- *       all stored events</li>
+ *   <li>Rebuild its own state from events via {@code @EventSourcingHandler} methods</li>
  * </ul>
+ *
+ * <h2>Axon 5 model</h2>
+ * The Axon 4 {@code @Aggregate}/{@code @AggregateIdentifier}/{@code AggregateLifecycle.apply()}
+ * model is replaced by an {@link EventSourcedEntity}.  The entity is identified by the
+ * {@code tagKey = "taskId"}: every domain event carries an {@code @EventTag(key = "taskId")}
+ * so the {@code EventSourcingRepository} can resolve the correct event stream when loading.
+ * Commands route to the entity via {@code @TargetEntityId} on the command's {@code taskId}.
+ *
+ * <p>The {@link CommandHandler} for {@link CreateTaskCommand} is a <em>static</em> (creational)
+ * handler: it runs when no entity exists yet and appends the first event.  All other command
+ * handlers are instance methods that operate on the sourced state.
  *
  * <h2>State machine</h2>
  * <pre>
@@ -30,44 +40,40 @@ import java.util.List;
  *   CREATED ──► REJECTED                                 (terminal)
  *   CREATED ──► CANCELLED                                (terminal)
  * </pre>
- *
- * <h2>Design note — no-arg constructor</h2>
- * Axon requires a protected no-arg constructor to reconstruct the aggregate
- * during event replay.  Never call it directly.
  */
 @Slf4j
+@EventSourcedEntity(tagKey = "taskId")
 public class TaskAggregate {
 
-    /** Axon aggregate identifier — matches the caller-supplied correlationId. */
-    @AggregateIdentifier
     private String taskId;
-
     private TaskStatus status;
     private TaskType taskType;
     private List<String> expectedExternalUsers;
     private String assignedGroup;
     private String assignedUser;
 
-    // -------------------------------------------------------------------------
-    // Required by Axon for aggregate reconstruction during event replay.
-    // -------------------------------------------------------------------------
-    protected TaskAggregate() {}
+    /**
+     * Required by Axon to instantiate a blank entity before sourcing it from events.
+     * Never call directly.
+     */
+    @EntityCreator
+    public TaskAggregate() {}
 
     // =========================================================================
     // Command Handlers
     // =========================================================================
 
     /**
-     * Creates a new Task aggregate.
+     * Creates a new Task (creational command handler — runs when no entity exists yet).
      *
      * <p>The {@code groupName} in the command is always non-null by the time it
      * reaches here; the REST layer substitutes the default group when the caller
-     * omits it (see {@code TaskResource}).
+     * omits it (see {@code TasksHttpResource}).
      */
     @CommandHandler
-    public TaskAggregate(CreateTaskCommand cmd) {
+    public static void handle(CreateTaskCommand cmd, EventAppender appender) {
         log.debug("Handling CreateTaskCommand for taskId={}", cmd.taskId());
-        AggregateLifecycle.apply(new TaskCreatedEvent(
+        appender.append(new TaskCreatedEvent(
                 cmd.taskId(),
                 cmd.title(),
                 cmd.description(),
@@ -84,13 +90,13 @@ public class TaskAggregate {
      * Valid in any non-terminal state.
      */
     @CommandHandler
-    public void handle(AssignTaskCommand cmd) {
+    public void handle(AssignTaskCommand cmd, EventAppender appender) {
         requireNonTerminal();
         log.debug("Handling AssignTaskCommand: taskId={} → assignee={} ({})",
                 taskId, cmd.assigneeName(), cmd.assigneeType());
         String newGroup = cmd.assigneeType() == AssigneeType.GROUP ? cmd.assigneeName() : this.assignedGroup;
         String newUser  = cmd.assigneeType() == AssigneeType.USER  ? cmd.assigneeName() : this.assignedUser;
-        AggregateLifecycle.apply(new TaskAssignedEvent(
+        appender.append(new TaskAssignedEvent(
                 taskId, newGroup, newUser, this.assignedGroup, this.assignedUser
         ));
     }
@@ -100,42 +106,41 @@ public class TaskAggregate {
      * Valid in any non-terminal state.
      */
     @CommandHandler
-    public void handle(ReassignTaskCommand cmd) {
+    public void handle(ReassignTaskCommand cmd, EventAppender appender) {
         requireNonTerminal();
         log.debug("Handling ReassignTaskCommand: taskId={} → reassignee={} ({})",
                 taskId, cmd.newAssigneeName(), cmd.newAssigneeType());
         String newGroup = cmd.newAssigneeType() == AssigneeType.GROUP ? cmd.newAssigneeName() : this.assignedGroup;
         String newUser  = cmd.newAssigneeType() == AssigneeType.USER  ? cmd.newAssigneeName() : this.assignedUser;
-        AggregateLifecycle.apply(new TaskReassignedEvent(
+        appender.append(new TaskReassignedEvent(
                 taskId, this.assignedGroup, this.assignedUser, newGroup, newUser
         ));
     }
 
     /**
      * Transitions the task from ASSIGNED to IN_PROGRESS.
-     * Works regardless of whether the current assignee is a user or a group.
      */
     @CommandHandler
-    public void handle(StartTaskCommand cmd) {
+    public void handle(StartTaskCommand cmd, EventAppender appender) {
         if (status != TaskStatus.ASSIGNED) {
             throw new IllegalStateException(
                     "Cannot start task %s: expected ASSIGNED but was %s".formatted(taskId, status));
         }
         log.debug("Handling StartTaskCommand: taskId={}", taskId);
-        AggregateLifecycle.apply(new TaskStartedEvent(taskId, status));
+        appender.append(new TaskStartedEvent(taskId, status));
     }
 
     /**
      * Transitions the task from IN_PROGRESS to DONE (terminal).
      */
     @CommandHandler
-    public void handle(CompleteTaskCommand cmd) {
+    public void handle(CompleteTaskCommand cmd, EventAppender appender) {
         if (status != TaskStatus.IN_PROGRESS) {
             throw new IllegalStateException(
                     "Cannot complete task %s: expected IN_PROGRESS but was %s".formatted(taskId, status));
         }
         log.debug("Handling CompleteTaskCommand: taskId={}", taskId);
-        AggregateLifecycle.apply(new TaskCompletedEvent(taskId, status));
+        appender.append(new TaskCompletedEvent(taskId, status));
     }
 
     /**
@@ -143,10 +148,10 @@ public class TaskAggregate {
      * Valid in any non-terminal state.
      */
     @CommandHandler
-    public void handle(CancelTaskCommand cmd) {
+    public void handle(CancelTaskCommand cmd, EventAppender appender) {
         requireNonTerminal();
         log.debug("Handling CancelTaskCommand: taskId={}, reason={}", taskId, cmd.reason());
-        AggregateLifecycle.apply(new TaskCancelledEvent(taskId, status, cmd.reason()));
+        appender.append(new TaskCancelledEvent(taskId, status, cmd.reason()));
     }
 
     /**
@@ -154,19 +159,39 @@ public class TaskAggregate {
      * Only valid from CREATED or ASSIGNED status.
      */
     @CommandHandler
-    public void handle(RejectTaskCommand cmd) {
+    public void handle(RejectTaskCommand cmd, EventAppender appender) {
         if (status != TaskStatus.CREATED && status != TaskStatus.ASSIGNED) {
             throw new IllegalStateException(
                     "Cannot reject task %s: must be CREATED or ASSIGNED but was %s".formatted(taskId, status));
         }
         log.debug("Handling RejectTaskCommand: taskId={}, reason={}", taskId, cmd.reason());
-        AggregateLifecycle.apply(new TaskRejectedEvent(taskId, status, cmd.reason()));
+        appender.append(new TaskRejectedEvent(taskId, status, cmd.reason()));
+    }
+
+    /**
+     * Records that the task's deadline elapsed while it was still active.
+     *
+     * <p>Issued by {@code TaskDeadlineProcessManager}.  If the task has already
+     * reached a terminal state (e.g. it completed just before the deadline
+     * scheduler fired) no event is appended — escalation is only relevant for
+     * active tasks.
+     */
+    @CommandHandler
+    public void handle(MarkDeadlineExceededCommand cmd, EventAppender appender) {
+        if (status != null && status.isTerminal()) {
+            log.info("Deadline elapsed for taskId={} but task is already terminal ({}). No escalation.",
+                    taskId, status);
+            return;
+        }
+        log.warn("DEADLINE EXCEEDED — taskId={}, deadline={}, currentStatus={}. "
+                + "Task was not completed within the agreed timeframe.", taskId, cmd.deadline(), status);
+        appender.append(new TaskDeadlineExceededEvent(taskId, cmd.deadline(), status));
     }
 
     // =========================================================================
     // Event Sourcing Handlers
     //
-    // These methods rebuild the aggregate state from the event stream.
+    // These methods rebuild the entity state from the event stream.
     // They must NOT trigger any side effects — only update internal fields.
     // =========================================================================
 
@@ -216,14 +241,18 @@ public class TaskAggregate {
         this.status = TaskStatus.REJECTED;
     }
 
+    @EventSourcingHandler
+    public void on(TaskDeadlineExceededEvent event) {
+        // No state change — the task keeps its current status.
+        // Recorded on the stream for the audit trail only.
+    }
+
     // =========================================================================
     // Guards
     // =========================================================================
 
     /**
-     * Throws if the aggregate is in a terminal state.
-     * Called at the start of any command handler that must not run on a
-     * completed / cancelled / rejected task.
+     * Throws if the entity is in a terminal state.
      */
     private void requireNonTerminal() {
         if (status != null && status.isTerminal()) {

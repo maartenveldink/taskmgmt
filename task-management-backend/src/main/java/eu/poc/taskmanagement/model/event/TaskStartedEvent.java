@@ -1,5 +1,7 @@
 package eu.poc.taskmanagement.model.event;
 
+import org.axonframework.eventsourcing.annotation.EventTag;
+
 import eu.poc.taskmanagement.model.TaskStatus;
 
 /**
@@ -9,6 +11,6 @@ import eu.poc.taskmanagement.model.TaskStatus;
  * @param previousStatus always ASSIGNED when this event is valid
  */
 public record TaskStartedEvent(
-        String taskId,
+        @EventTag(key = "taskId") String taskId,
         TaskStatus previousStatus
 ) {}

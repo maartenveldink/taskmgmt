@@ -22,8 +22,9 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.axonframework.modelling.command.AggregateStreamCreationException;
-import org.axonframework.modelling.command.ConcurrencyException;
+import org.axonframework.modelling.entity.EntityAlreadyExistsForCreationalCommandHandlerException;
+import org.axonframework.modelling.entity.EntityMissingForInstanceCommandHandlerException;
+import org.axonframework.modelling.ConcurrencyException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -162,8 +163,15 @@ public class TasksHttpResource implements TasksApi {
 
     private Response mapExceptionToResponse(Throwable ex) {
         String message = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
+        // An instance command targeting a task that has never been created — the
+        // Axon 5 equivalent of the Axon 4 AggregateNotFoundException.
+        if (ex instanceof EntityMissingForInstanceCommandHandlerException) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ApiError("NOT_FOUND", message))
+                    .build();
+        }
         if (ex instanceof IllegalStateException
-                || ex instanceof AggregateStreamCreationException
+                || ex instanceof EntityAlreadyExistsForCreationalCommandHandlerException
                 || ex instanceof ConcurrencyException) {
             return Response.status(Response.Status.CONFLICT)
                     .entity(new ApiError("CONFLICT", message))

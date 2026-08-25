@@ -1,5 +1,7 @@
 package eu.poc.taskmanagement.model.event;
 
+import org.axonframework.eventsourcing.annotation.EventTag;
+
 import eu.poc.taskmanagement.model.TaskStatus;
 
 import java.time.Instant;
@@ -20,7 +22,7 @@ import java.time.Instant;
  * @param statusAtBreach the task's status at the moment the deadline fired
  */
 public record TaskDeadlineExceededEvent(
-        String taskId,
+        @EventTag(key = "taskId") String taskId,
         Instant deadline,
         TaskStatus statusAtBreach
 ) {}

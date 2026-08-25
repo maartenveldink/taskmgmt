@@ -1,5 +1,7 @@
 package eu.poc.taskmanagement.model.event;
 
+import org.axonframework.eventsourcing.annotation.EventTag;
+
 /**
  * Published when a task is explicitly assigned via {@code AssignTaskCommand}.
  *
@@ -14,7 +16,7 @@ package eu.poc.taskmanagement.model.event;
  * @param previousUser  user assigned before this assignment
  */
 public record TaskAssignedEvent(
-        String taskId,
+        @EventTag(key = "taskId") String taskId,
         String assignedGroup,
         String assignedUser,
         String previousGroup,

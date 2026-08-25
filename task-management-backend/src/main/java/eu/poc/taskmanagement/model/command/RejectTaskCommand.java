@@ -1,6 +1,6 @@
 package eu.poc.taskmanagement.model.command;
 
-import org.axonframework.modelling.command.TargetAggregateIdentifier;
+import org.axonframework.modelling.annotation.TargetEntityId;
 
 /**
  * Rejects a task (transitions to REJECTED terminal state).
@@ -10,6 +10,6 @@ import org.axonframework.modelling.command.TargetAggregateIdentifier;
  * The optional {@code reason} is recorded in the event and the audit trail.
  */
 public record RejectTaskCommand(
-        @TargetAggregateIdentifier String taskId,
+        @TargetEntityId String taskId,
         String reason
 ) {}

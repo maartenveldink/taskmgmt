@@ -9,8 +9,8 @@ import eu.poc.taskmanagement.model.command.RejectTaskCommand;
 import eu.poc.taskmanagement.model.command.StartTaskCommand;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.axonframework.commandhandling.CommandExecutionException;
-import org.axonframework.commandhandling.gateway.CommandGateway;
+import org.axonframework.messaging.commandhandling.CommandExecutionException;
+import org.axonframework.messaging.commandhandling.gateway.CommandGateway;
 
 @ApplicationScoped
 public class TaskCommandApplicationService {

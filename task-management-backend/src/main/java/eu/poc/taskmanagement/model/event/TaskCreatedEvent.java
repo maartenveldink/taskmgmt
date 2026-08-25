@@ -1,5 +1,7 @@
 package eu.poc.taskmanagement.model.event;
 
+import org.axonframework.eventsourcing.annotation.EventTag;
+
 import eu.poc.taskmanagement.model.TaskType;
 
 import java.time.Instant;
@@ -19,7 +21,7 @@ import java.util.List;
  * @param deadline      mandatory; used by the Saga to schedule the deadline trigger
  */
 public record TaskCreatedEvent(
-        String taskId,
+        @EventTag(key = "taskId") String taskId,
         String title,
         String description,
         String assignedGroup,

@@ -1,5 +1,7 @@
 package eu.poc.taskmanagement.model.event;
 
+import org.axonframework.eventsourcing.annotation.EventTag;
+
 /**
  * Published when a task is reassigned to a different user or group without
  * a status change (e.g., a group member claiming a task from the queue).
@@ -13,7 +15,7 @@ package eu.poc.taskmanagement.model.event;
  * @param assignedUser  user assigned after reassignment
  */
 public record TaskReassignedEvent(
-        String taskId,
+        @EventTag(key = "taskId") String taskId,
         String previousGroup,
         String previousUser,
         String assignedGroup,

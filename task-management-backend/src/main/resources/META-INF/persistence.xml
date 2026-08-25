@@ -15,13 +15,12 @@
   ENTITIES FROM AXON FRAMEWORK
   ==============================
   axon-eventsourcing:
-    • DomainEventEntry    — one row per published domain event (event store)
-    • SnapshotEventEntry  — one row per aggregate snapshot
+    • AggregateEventEntry — one row per published domain event (event store);
+                            used by the Axon 5 AggregateBasedJpaEventStorageEngine.
 
-  axon-modelling:
-    • SagaEntry           — serialised state of a single Saga instance
-    • AssociationValueEntry — maps an association value to a Saga ID
-                             (e.g., "taskId" → saga UUID)
+  NOTE: Axon 5.3.1 has no saga module, so there are no SagaEntry /
+  AssociationValueEntry tables.  Sagas/deadlines are reimplemented as in-memory
+  CDI process managers (see saga package), so no extra JPA entities are needed.
 
   OWN ENTITIES
   ============
@@ -57,13 +56,8 @@
         <class>eu.poc.taskmanagement.projection.tasks.TaskView</class>
         <class>eu.poc.taskmanagement.projection.audittrail.AuditTrailEntry</class>
 
-        <!-- Axon event store tables (axon-eventsourcing) -->
-        <class>org.axonframework.eventsourcing.eventstore.jpa.DomainEventEntry</class>
-        <class>org.axonframework.eventsourcing.eventstore.jpa.SnapshotEventEntry</class>
-
-        <!-- Axon saga store tables (axon-modelling) -->
-        <class>org.axonframework.modelling.saga.repository.jpa.SagaEntry</class>
-        <class>org.axonframework.modelling.saga.repository.jpa.AssociationValueEntry</class>
+        <!-- Axon event store table (axon-eventsourcing) -->
+        <class>org.axonframework.eventsourcing.eventstore.jpa.AggregateEventEntry</class>
 
         <!--
           false: allow Quarkus to also discover @Entity classes in the

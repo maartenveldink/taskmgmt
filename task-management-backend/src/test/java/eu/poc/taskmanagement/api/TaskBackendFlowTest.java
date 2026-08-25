@@ -66,15 +66,19 @@ class TaskBackendFlowTest {
         long domainEventCount = queryStore.countDomainEvents(taskId);
         assertEquals(3L, domainEventCount);
 
-        // Wait for deadline to exceed and saga to escalate
+        // Wait for deadline to exceed and the process manager to escalate
         queryStore.waitForEvent(taskId, "TaskDeadlineExceededEvent", Duration.ofSeconds(6));
 
         // Verify audit trail contains escalation event
         List<AuditTrailEntry> audit = queryStore.getAuditTrail(taskId);
         assertTrue(audit.stream().anyMatch(entry -> "TaskDeadlineExceededEvent".equals(entry.eventType)));
 
-        // Verify saga has cleaned up its associations
-        long activeSagaAssociations = queryStore.countActiveSagaAssociations(taskId);
-        assertEquals(0L, activeSagaAssociations);
+        // Regression guard: the escalation is dispatched from a scheduler thread that
+        // has no ambient @Transactional. The event MUST still be durably persisted in
+        // the event store (created + assigned + started + deadlineExceeded = 4), not
+        // merely published in-memory to the (separately @Transactional) projection.
+        // A no-op transaction manager on that thread would leave this at 3.
+        assertEquals(4L, queryStore.countDomainEvents(taskId),
+                "TaskDeadlineExceededEvent must be persisted in the event store, not only in the projection");
     }
 }

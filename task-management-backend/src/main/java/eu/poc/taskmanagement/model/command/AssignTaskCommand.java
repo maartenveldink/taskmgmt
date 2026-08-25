@@ -1,7 +1,7 @@
 package eu.poc.taskmanagement.model.command;
 
 import lombok.Builder;
-import org.axonframework.modelling.command.TargetAggregateIdentifier;
+import org.axonframework.modelling.annotation.TargetEntityId;
 
 /**
  * Assigns (or re-assigns on initial assignment) a task to a user or group.
@@ -11,7 +11,7 @@ import org.axonframework.modelling.command.TargetAggregateIdentifier;
  */
 @Builder
 public record AssignTaskCommand(
-        @TargetAggregateIdentifier String taskId,
+        @TargetEntityId String taskId,
         String assigneeName,
         AssigneeType assigneeType
 ) {}

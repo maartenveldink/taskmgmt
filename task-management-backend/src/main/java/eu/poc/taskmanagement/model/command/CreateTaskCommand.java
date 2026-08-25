@@ -2,7 +2,7 @@ package eu.poc.taskmanagement.model.command;
 
 import lombok.Builder;
 import eu.poc.taskmanagement.model.TaskType;
-import org.axonframework.modelling.command.TargetAggregateIdentifier;
+import org.axonframework.modelling.annotation.TargetEntityId;
 
 import java.time.Instant;
 import java.util.List;
@@ -24,7 +24,7 @@ import java.util.List;
  */
 @Builder(toBuilder = true)
 public record CreateTaskCommand(
-        @TargetAggregateIdentifier String taskId,
+        @TargetEntityId String taskId,
         String title,
         String description,
         String groupName,

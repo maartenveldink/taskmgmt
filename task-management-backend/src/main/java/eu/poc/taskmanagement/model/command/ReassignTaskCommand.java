@@ -1,6 +1,6 @@
 package eu.poc.taskmanagement.model.command;
 
-import org.axonframework.modelling.command.TargetAggregateIdentifier;
+import org.axonframework.modelling.annotation.TargetEntityId;
 
 /**
  * Reassigns a task to a different user or group without changing its status.
@@ -10,7 +10,7 @@ import org.axonframework.modelling.command.TargetAggregateIdentifier;
  * "claiming" a task from the shared queue).
  */
 public record ReassignTaskCommand(
-        @TargetAggregateIdentifier String taskId,
+        @TargetEntityId String taskId,
         String newAssigneeName,
         AssigneeType newAssigneeType
 ) {}

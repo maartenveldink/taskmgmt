@@ -9,8 +9,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.axonframework.messaging.responsetypes.ResponseTypes;
-import org.axonframework.queryhandling.QueryGateway;
+import org.axonframework.messaging.queryhandling.gateway.QueryGateway;
 
 import java.time.Duration;
 import java.util.List;
@@ -52,19 +51,8 @@ public class QueryStore {
      */
     public long countDomainEvents(String aggregateId) {
         Number result = (Number) entityManager.createNativeQuery(
-                "select count(*) from domainevententry where aggregateidentifier = ?1")
+                "select count(*) from AggregateEventEntry where aggregateIdentifier = ?1")
                 .setParameter(1, aggregateId)
-                .getSingleResult();
-        return result.longValue();
-    }
-
-    /**
-     * Count active saga associations for a task (indicates if saga is still running).
-     */
-    public long countActiveSagaAssociations(String taskId) {
-        Number result = (Number) entityManager.createNativeQuery(
-                "select count(*) from associationvalueentry where associationvalue = ?1")
-                .setParameter(1, taskId)
                 .getSingleResult();
         return result.longValue();
     }
@@ -90,6 +78,6 @@ public class QueryStore {
      * Execute a query against the query store.
      */
     private <T> List<T> query(Object queryMessage, Class<T> responseType) throws Exception {
-        return queryGateway.query(queryMessage, ResponseTypes.multipleInstancesOf(responseType)).get();
+        return queryGateway.queryMany(queryMessage, responseType).get();
     }
 }

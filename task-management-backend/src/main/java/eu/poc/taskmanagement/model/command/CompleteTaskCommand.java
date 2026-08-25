@@ -1,7 +1,7 @@
 package eu.poc.taskmanagement.model.command;
 
 import lombok.Builder;
-import org.axonframework.modelling.command.TargetAggregateIdentifier;
+import org.axonframework.modelling.annotation.TargetEntityId;
 
 /**
  * Marks a task as DONE.  The task must be IN_PROGRESS.
@@ -11,5 +11,5 @@ import org.axonframework.modelling.command.TargetAggregateIdentifier;
  */
 @Builder
 public record CompleteTaskCommand(
-        @TargetAggregateIdentifier String taskId
+        @TargetEntityId String taskId
 ) {}

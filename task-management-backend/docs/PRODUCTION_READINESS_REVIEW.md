@@ -35,7 +35,7 @@ The Task Management PoC is a **well-structured CQRS/Event Sourcing implementatio
 
 2. **Well-Tested Core Logic**
    - TaskAggregateTest: comprehensive command handling tests
-   - TaskDeadlineSagaTest: deadline escalation logic verified
+   - TaskDeadlineProcessManagerTest: deadline escalation logic verified
    - TaskBackendFlowTest: E2E integration test
    - TaskResourceTest: REST API contract tests
 
@@ -53,7 +53,7 @@ The Task Management PoC is a **well-structured CQRS/Event Sourcing implementatio
 
 5. **Modern Stack**
    - Quarkus 3.8.6 (native compilation capable)
-   - Axon Framework 4.9.3
+   - Axon Framework 5.3.1
    - Java 21
    - JPA/Hibernate with Panache
 
@@ -119,14 +119,46 @@ The Task Management PoC is a **well-structured CQRS/Event Sourcing implementatio
 - **Impact**: Retry logic could fail; no safe retry mechanism
 - **Fix**: Add `X-Idempotency-Key` header support
 
-### 7. **Saga Deadline Configuration Not Environment-Aware**
-- **Current**: Quartz scheduler configured in code via `StdSchedulerFactory`
-- **Issue**: No separate dev/prod thread pool configuration
-- **Fix**: Externalize Quartz pool size to configuration
+### 7. **Deadline Scheduling Configuration Not Environment-Aware**
+- **Current**: A `ScheduledExecutorService` (see `ExecutorDeadlineScheduler`) with a
+  fixed thread pool drives the deadline/provisioning process managers.  Axon 5.3.1
+  ships no saga/deadline/scheduling modules, so this logic lives outside Axon.
+- **Issue**: No separate dev/prod thread pool configuration; schedules are held
+  in memory and are lost on restart.
+- **Fix**: Externalize the pool size to configuration and, for production,
+  replace the in-memory scheduler with a durable/clusterable scheduler.
 
 ### 8. **No Graceful Shutdown**
-- **Issue**: Quartz scheduler and Axon Framework shutdown not orchestrated
+- **Issue**: Deadline scheduler and Axon Framework shutdown not orchestrated
 - **Fix**: Implement `ShutdownEvent` handler for clean shutdown sequence
+
+### 8a. **Process-Manager Concurrency (scheduler thread vs event-processor thread)**
+The `TaskDeadlineProcessManager` / `UserProvisioningProcessManager` state is mutated
+on the Axon event-processor thread but read (and acted on) from the
+`ScheduledExecutorService` scheduler thread. Four items were reviewed:
+
+- **Escalation durability (fixed)** — deadline/provisioning commands are dispatched
+  from the scheduler thread, which has no ambient `@Transactional`. Both dispatch
+  sites now run inside `TransactionRunner.runInTransaction(...)`
+  (`QuarkusTransactionRunner` → `QuarkusTransaction.requiringNew()`), so the
+  resulting event-store append commits durably instead of only being published
+  in-memory to the projections. Guarded by `TaskBackendFlowTest` and
+  `UserProvisioningFlowTest` (both assert the event count in `AggregateEventEntry`).
+- **Memory visibility (fixed)** — the per-task `DeadlineState` / `ProvisioningState`
+  fields are now `volatile`, establishing the happens-before needed for the
+  scheduler thread to observe writes made on the event-processor thread. The
+  `states` maps were already `ConcurrentHashMap`.
+- **Phantom timers on rollback (accepted for PoC)** — timers are armed inside the
+  event handler that reacts to `TaskCreatedEvent`; if that unit of work rolled back
+  a stale timer could remain. Impact is bounded: `fireDeadline`/`poll` re-check the
+  authoritative in-memory state and the aggregate re-validates before emitting, so a
+  phantom fire is a no-op. A production fix would arm timers only after commit via a
+  transaction synchronization.
+- **`end()` vs `scheduleNextPoll()` race (accepted for PoC)** — a poll already in
+  flight can reschedule one extra poll after `end()` cancels; that extra poll finds
+  the state removed and returns without effect. Harmless leak of a single no-op poll.
+- **Purely in-memory state (accepted for PoC)** — see items #6/#7; all schedule and
+  process state is lost on restart. Documented as acceptable for this PoC.
 
 ### 9. **Test Database Isolated from Real Database**
 - **Status**: ✅ Good (H2 in-memory for tests)
@@ -168,7 +200,7 @@ The Task Management PoC is a **well-structured CQRS/Event Sourcing implementatio
 
 ### Tested Components ✅
 - `TaskAggregate`: All state transitions tested
-- `TaskDeadlineSaga`: Deadline escalation and cleanup tested
+- `TaskDeadlineProcessManager` / `UserProvisioningProcessManager`: Deadline escalation, provisioning completion and cleanup tested
 - REST API (`TaskResource`): All endpoints and error cases tested
 - Projections: Audit trail and task views tested
 - Integration: E2E command → event → query flow tested
@@ -177,13 +209,13 @@ The Task Management PoC is a **well-structured CQRS/Event Sourcing implementatio
 1. **Error Handling**: Exception mappers not tested
 2. **Query Pagination**: Boundary conditions not tested
 3. **Concurrent Commands**: No test for race conditions
-4. **Saga Failure Scenarios**: Only success path tested
+4. **Process Manager Failure Scenarios**: Only success path tested
 
 ### Test Recommendations
 - Add `ConstraintViolationExceptionMapperTest`
 - Add pagination boundary tests (limit=0, limit=1001)
 - Add concurrent command dispatch tests
-- Add saga timeout/failure scenarios
+- Add process-manager timeout/failure scenarios
 
 ---
 

@@ -1,6 +1,6 @@
 package eu.poc.taskmanagement.model.command;
 
-import org.axonframework.modelling.command.TargetAggregateIdentifier;
+import org.axonframework.modelling.annotation.TargetEntityId;
 
 /**
  * Cancels a task (transitions to CANCELLED terminal state).
@@ -9,6 +9,6 @@ import org.axonframework.modelling.command.TargetAggregateIdentifier;
  * {@code reason} is recorded in the event and the audit trail.
  */
 public record CancelTaskCommand(
-        @TargetAggregateIdentifier String taskId,
+        @TargetEntityId String taskId,
         String reason
 ) {}
