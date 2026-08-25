@@ -144,21 +144,33 @@ on the Axon event-processor thread but read (and acted on) from the
   resulting event-store append commits durably instead of only being published
   in-memory to the projections. Guarded by `TaskBackendFlowTest` and
   `UserProvisioningFlowTest` (both assert the event count in `AggregateEventEntry`).
-- **Memory visibility (fixed)** — the per-task `DeadlineState` / `ProvisioningState`
-  fields are now `volatile`, establishing the happens-before needed for the
-  scheduler thread to observe writes made on the event-processor thread. The
-  `states` maps were already `ConcurrentHashMap`.
+- **Memory visibility / state isolation (fixed)** — the two process managers were
+  reviewed separately:
+    - *User provisioning* — its per-task state is now a transactional database row
+      (`ProvisioningState`, table `provisioning_state`) instead of an in-memory
+      object. All reads/writes happen inside a JTA transaction (event handlers via
+      `@Transactional`, the scheduler-thread poll via `TransactionRunner`), so the
+      database provides isolation between the event-processor and scheduler threads,
+      an `@Version` column adds optimistic locking against lost updates, and the
+      state survives a restart. Covered by `UserProvisioningProcessManagerTest`.
+    - *Deadline* — `TaskDeadlineProcessManager` still holds its `DeadlineState` in a
+      `ConcurrentHashMap`; its fields are `volatile` to give the scheduler thread a
+      happens-before view of writes made on the event-processor thread. Persisting
+      this state the same way is a straightforward follow-up if required.
 - **Phantom timers on rollback (accepted for PoC)** — timers are armed inside the
   event handler that reacts to `TaskCreatedEvent`; if that unit of work rolled back
   a stale timer could remain. Impact is bounded: `fireDeadline`/`poll` re-check the
-  authoritative in-memory state and the aggregate re-validates before emitting, so a
-  phantom fire is a no-op. A production fix would arm timers only after commit via a
+  authoritative state and the aggregate re-validates before emitting, so a phantom
+  fire is a no-op. A production fix would arm timers only after commit via a
   transaction synchronization.
 - **`end()` vs `scheduleNextPoll()` race (accepted for PoC)** — a poll already in
   flight can reschedule one extra poll after `end()` cancels; that extra poll finds
   the state removed and returns without effect. Harmless leak of a single no-op poll.
-- **Purely in-memory state (accepted for PoC)** — see items #6/#7; all schedule and
-  process state is lost on restart. Documented as acceptable for this PoC.
+- **In-memory scheduling (accepted for PoC)** — the provisioning *state* is now
+  durable, but the scheduler itself (`ExecutorDeadlineScheduler`) and the deadline
+  process state remain in memory, so pending timers are still lost on restart (see
+  items #6/#7). Recovery scheduling (re-arming polls for persisted rows on startup)
+  is out of scope for this PoC.
 
 ### 9. **Test Database Isolated from Real Database**
 - **Status**: ✅ Good (H2 in-memory for tests)

@@ -56,6 +56,9 @@
         <class>eu.poc.taskmanagement.projection.tasks.TaskView</class>
         <class>eu.poc.taskmanagement.projection.audittrail.AuditTrailEntry</class>
 
+        <!-- Process-manager durable state -->
+        <class>eu.poc.taskmanagement.saga.ProvisioningState</class>
+
         <!-- Axon event store table (axon-eventsourcing) -->
         <class>org.axonframework.eventsourcing.eventstore.jpa.AggregateEventEntry</class>
 
